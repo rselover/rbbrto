@@ -1,18 +1,6 @@
 {
-  "name": "@sampi/rbbrto",
+  "name": "@rselover/rbbrto",
   "version": "0.0.1",
-  "_deleted_description": "Recreation of the OP-1's Rbbrto sequencer using Web MIDI",
-  "scripts": {
-    "start": "npx @commonshost/server start --watch",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "prettier --write --config .prettierrc \"src/**/*.{js,json,css,html}\""
-  },
-  "_deleted_repository": "github:sampi/rbbrto.git",
-  "_deleted_author": "Daniel Spitzer <sampi@sampi.io>",
-  "_deleted_bugs": {
-    "url": "https://github.com/sampi/rbbrto/issues"
-  },
-  "_deleted_homepage": "https://github.com/sampi/rbbrto#readme",
   "devDependencies": {
     "prettier": "^1.16.3"
   }
