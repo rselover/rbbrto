@@ -1,0 +1,31 @@
+@font-face {
+	font-family: 'OP-1';
+	src: url('../fonts/OP-1.woff') format('woff');
+	font-weight: normal;
+	font-style: normal;
+}
+
+:root {
+	--beat-s: 0.25s;
+	--translate-x: 0;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	position: relative;
+	width: 100%;
+	height: 100%;
+	background: black;
+	overflow: hidden;
+	user-select: none;
+}
+
+rbbrto-sequencer {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+}
