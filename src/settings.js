@@ -8,7 +8,7 @@ class Settings extends HTMLElement {
 		super();
 
 		this.drum = 1;
-		this.control = 14;
+		this.control = 4;
 		this.synth = 8;
 
 		this.stepDuration = 0;
