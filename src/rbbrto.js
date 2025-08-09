@@ -83,15 +83,17 @@ class Rbbrto extends HTMLElement {
 
 		this._printWelcomeText();
 
-import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm').then(Tone => {
-    this._Tone = Tone;
-    this._toneSynth = new Tone.PolySynth().toDestination();
-    this._toneDrum = new Tone.MembraneSynth().toDestination();
-    this._toneLoaded = true;
-}).catch(e => {
-    console.warn("Tone.js failed to load", e);
-    this._toneLoaded = false;
-});
+		import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm')
+			.then(Tone => {
+				this._Tone = Tone;
+				this._toneSynth = new Tone.PolySynth().toDestination();
+				this._toneDrum = new Tone.MembraneSynth().toDestination();
+				this._toneLoaded = true;
+			})
+			.catch(e => {
+				console.warn('Tone.js failed to load', e);
+				this._toneLoaded = false;
+			});
 
 		// Set some defaults
 		this[$playback] = false;
@@ -124,22 +126,22 @@ import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm').then(Tone => {
 		this.shadow.appendChild(document.createElement('rbbrto-settings'));
 	}
 
-    // Debug
-    debugStart({drum = 0, synth = 7, both = false} = {}) {
-    this.drumPattern = drum;
-    this.synthPattern = synth;
-    this.playback = true;
-    if (both) {
-        this[$drumPlayback] = true;
-        this[$synthPlayback] = true;
-        this[$displayInstrument] = 'drum';
-    } else {
-        this[$drumPlayback] = true;
-        this[$synthPlayback] = false;
-        this[$displayInstrument] = 'drum';
-    }
-    this._updatePatternUI();
-}
+	// Debug
+	debugStart({ drum = 0, synth = 7, both = false } = {}) {
+		this.drumPattern = drum;
+		this.synthPattern = synth;
+		this.playback = true;
+		if (both) {
+			this[$drumPlayback] = true;
+			this[$synthPlayback] = true;
+			this[$displayInstrument] = 'drum';
+		} else {
+			this[$drumPlayback] = true;
+			this[$synthPlayback] = false;
+			this[$displayInstrument] = 'drum';
+		}
+		this._updatePatternUI();
+	}
 
 	// We're in the DOM
 	connectedCallback() {
@@ -178,8 +180,7 @@ import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm').then(Tone => {
 			evt => (this.synthChannel = evt.detail)
 		);
 
-        window.addEventListener('keydown', this._onKeyDown.bind(this));
-        window.addEventListener('keyup', this._onKeyUp.bind(this));
+		this._initPads();
 	}
 
 	attributeChangedCallback(name, oldVal, newVal) {
@@ -265,20 +266,20 @@ import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm').then(Tone => {
 	 */
 
 	set bpm(bpm) {
-        if (Math.abs(parseFloat(this[$bpm]) - parseFloat(bpm)) > Number.EPSILON) {
-            this[$bpm] = parseFloat(bpm);
-            this[$stepDuration] = 60.0 / this[$bpm] / 4.0;
-            this.setAttribute('bpm', parseFloat(bpm));
-            const svg = this.shadow.querySelector('svg');
-            if (svg) {
-                svg.style.setProperty('--beat-s', this[$stepDuration] + 's');
-            }
-            const settings = this.shadow.querySelector('rbbrto-settings');
-            if (settings) {
-                settings.setAttribute('step-duration', this[$stepDuration]);
-            }
-        }
-    }
+		if (Math.abs(parseFloat(this[$bpm]) - parseFloat(bpm)) > Number.EPSILON) {
+			this[$bpm] = parseFloat(bpm);
+			this[$stepDuration] = 60.0 / this[$bpm] / 4.0;
+			this.setAttribute('bpm', parseFloat(bpm));
+			const svg = this.shadow.querySelector('svg');
+			if (svg) {
+				svg.style.setProperty('--beat-s', this[$stepDuration] + 's');
+			}
+			const settings = this.shadow.querySelector('rbbrto-settings');
+			if (settings) {
+				settings.setAttribute('step-duration', this[$stepDuration]);
+			}
+		}
+	}
 
 	get bpm() {
 		return this[$bpm];
@@ -399,84 +400,90 @@ import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm').then(Tone => {
 	 * @param  {int|Array} notes
 	 */
 	_playSynthNotes(notes) {
-            // Resume Tone.js AudioContext if needed
-    if (this._Tone && this._Tone.context && this._Tone.context.state !== "running") {
-        this._Tone.start();
-    }
-    // Reset the synth UI
-    this._updatePatternUI();
-    this._resetSynths();
+		// Resume Tone.js AudioContext if needed
+		if (
+			this._Tone &&
+			this._Tone.context &&
+			this._Tone.context.state !== 'running'
+		) {
+			this._Tone.start();
+		}
+		// Reset the synth UI
+		this._updatePatternUI();
+		this._resetSynths();
 
-    const notesArr = asArrayLike(notes);
-    const midi = this[$midi];
+		const notesArr = asArrayLike(notes);
+		const midi = this[$midi];
 
-    // Stop playing the previous notes
-    if (this[$activeSynthNotes] !== null) {
-        midi.send(
-            this[$synthChannel],
-            'noteoff',
-            this[$activeSynthNotes][0],
-            127
-        );
-        if (this[$activeSynthNotes][1]) {
-            midi.send(
-                this[$synthChannel],
-                'noteoff',
-                this[$activeSynthNotes][1],
-                127
-            );
-        }
-    }
+		// Stop playing the previous notes
+		if (this[$activeSynthNotes] !== null) {
+			midi.send(
+				this[$synthChannel],
+				'noteoff',
+				this[$activeSynthNotes][0],
+				127
+			);
+			if (this[$activeSynthNotes][1]) {
+				midi.send(
+					this[$synthChannel],
+					'noteoff',
+					this[$activeSynthNotes][1],
+					127
+				);
+			}
+		}
 
-    // Send new notes to MIDI out
-    if (notes !== null) {
-        midi.send(this[$synthChannel], 'noteon', idxToMidi(notesArr[0]), 127);
-        if (notesArr[1]) {
-            midi.send(this[$synthChannel], 'noteon', idxToMidi(notesArr[1]), 127);
-        }
-    } else {
-        // Stay idle if no notes should be played
-        this[$activeSynthNotes] = null;
-        return this._idleSynths();
-    }
+		// Send new notes to MIDI out
+		if (notes !== null) {
+			midi.send(this[$synthChannel], 'noteon', idxToMidi(notesArr[0]), 127);
+			if (notesArr[1]) {
+				midi.send(this[$synthChannel], 'noteon', idxToMidi(notesArr[1]), 127);
+			}
+		} else {
+			// Stay idle if no notes should be played
+			this[$activeSynthNotes] = null;
+			return this._idleSynths();
+		}
 
-    // --- Tone.js synth playback ---
-    if (this._Tone && this._toneSynth && notes !== null) {
-        // Resume audio context if needed
-        if (this._Tone.context.state !== "running") {
-            this._Tone.start();
-        }
-        const midiNotes = notesArr.map(n => this._Tone.Frequency(idxToMidi(n), "midi").toNote());
-        this._toneSynth.triggerAttackRelease(midiNotes, 0.3);
-    }
+		// --- Tone.js synth playback ---
+		if (this._Tone && this._toneSynth && notes !== null) {
+			// Resume audio context if needed
+			if (this._Tone.context.state !== 'running') {
+				this._Tone.start();
+			}
+			const midiNotes = notesArr.map(n =>
+				this._Tone.Frequency(idxToMidi(n), 'midi').toNote()
+			);
+			this._toneSynth.triggerAttackRelease(midiNotes, 0.3);
+		}
 
-    // Store played notes, so we can stop them the next time anything is played
-    this[$activeSynthNotes] = [idxToMidi(notesArr[0])];
-    if (notesArr[1]) {
-        this[$activeSynthNotes].push(idxToMidi(notesArr[1]));
-    }
+		// Store played notes, so we can stop them the next time anything is played
+		this[$activeSynthNotes] = [idxToMidi(notesArr[0])];
+		if (notesArr[1]) {
+			this[$activeSynthNotes].push(idxToMidi(notesArr[1]));
+		}
 
-    if (notesArr.length === 1) {
-        // Play single notes with the appropriate hand
-        const relNote = idxToMidi(notesArr[0]) % 12;
-        if (relNote < 6) {
-            this._hide(SYNTH_IDLE_HAND_LEFT);
-            this._hitSynthKey(SYNTH_PLAY_HAND_LEFT, relNote);
-        } else {
-            this._hide(SYNTH_IDLE_HAND_RIGHT);
-            this._hitSynthKey(SYNTH_PLAY_HAND_RIGHT, relNote);
-        }
-    } else {
-        // Play multiple notes with two hands
-        this._hide([SYNTH_IDLE_HAND_LEFT, SYNTH_IDLE_HAND_RIGHT]);
-        const relNotesArr = [
-            idxToMidi(notesArr[0]) % 12,
-            idxToMidi(notesArr[1]) % 12
-        ];
-        this._hitSynthKey(SYNTH_PLAY_HAND_LEFT, Math.min(...relNotesArr));
-        this._hitSynthKey(SYNTH_PLAY_HAND_RIGHT, Math.max(...relNotesArr));
-    }
-}
+		if (notesArr.length === 1) {
+			// Play single notes with the appropriate hand
+			const relNote = idxToMidi(notesArr[0]) % 12;
+			if (relNote < 6) {
+				this._hide(SYNTH_IDLE_HAND_LEFT);
+				this._hitSynthKey(SYNTH_PLAY_HAND_LEFT, relNote);
+			} else {
+				this._hide(SYNTH_IDLE_HAND_RIGHT);
+				this._hitSynthKey(SYNTH_PLAY_HAND_RIGHT, relNote);
+			}
+		} else {
+			// Play multiple notes with two hands
+			this._hide([SYNTH_IDLE_HAND_LEFT, SYNTH_IDLE_HAND_RIGHT]);
+			const relNotesArr = [
+				idxToMidi(notesArr[0]) % 12,
+				idxToMidi(notesArr[1]) % 12
+			];
+			this._hitSynthKey(SYNTH_PLAY_HAND_LEFT, Math.min(...relNotesArr));
+			this._hitSynthKey(SYNTH_PLAY_HAND_RIGHT, Math.max(...relNotesArr));
+		}
+	}
 
 	/**
 	 * Animate hitting a key with a hand
@@ -519,96 +526,100 @@ import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm').then(Tone => {
 	 * @param  {int|Array} notes
 	 */
 	_playDrumNotes(notes) {
-            // Resume Tone.js AudioContext if needed
-    if (this._Tone && this._Tone.context && this._Tone.context.state !== "running") {
-        this._Tone.start();
-    }
-    // Reset the drums UI
-    this._updatePatternUI();
-    this._resetDrums();
+		// Resume Tone.js AudioContext if needed
+		if (
+			this._Tone &&
+			this._Tone.context &&
+			this._Tone.context.state !== 'running'
+		) {
+			this._Tone.start();
+		}
+		// Reset the drums UI
+		this._updatePatternUI();
+		this._resetDrums();
 
-    const notesArr = asArrayLike(notes);
-    const midi = this[$midi];
+		const notesArr = asArrayLike(notes);
+		const midi = this[$midi];
 
-    // Stop playing the previous notes
-    if (this[$activeDrumNotes] !== null) {
-        midi.send(this[$drumChannel], 'noteoff', this[$activeDrumNotes][0], 127);
-        if (this[$activeDrumNotes][1]) {
-            midi.send(
-                this[$drumChannel],
-                'noteoff',
-                this[$activeDrumNotes][1],
-                127
-            );
-        }
-    }
+		// Stop playing the previous notes
+		if (this[$activeDrumNotes] !== null) {
+			midi.send(this[$drumChannel], 'noteoff', this[$activeDrumNotes][0], 127);
+			if (this[$activeDrumNotes][1]) {
+				midi.send(
+					this[$drumChannel],
+					'noteoff',
+					this[$activeDrumNotes][1],
+					127
+				);
+			}
+		}
 
-    // Send new notes to MIDI out
-    if (notes !== null) {
-        midi.send(this[$drumChannel], 'noteon', idxToMidi(notesArr[0]), 127);
-        if (notesArr[1]) {
-            midi.send(this[$drumChannel], 'noteon', idxToMidi(notesArr[1]), 127);
-        }
-    }
+		// Send new notes to MIDI out
+		if (notes !== null) {
+			midi.send(this[$drumChannel], 'noteon', idxToMidi(notesArr[0]), 127);
+			if (notesArr[1]) {
+				midi.send(this[$drumChannel], 'noteon', idxToMidi(notesArr[1]), 127);
+			}
+		}
 
-    // --- Tone.js drum playback ---
-    if (this._Tone && this._toneDrum && notes !== null) {
-        if (this._Tone.context.state !== "running") {
-            this._Tone.start();
-        }
-        // Play each drum note as a short "kick" (can be improved for more realism)
-        notesArr.forEach(n => {
-            this._toneDrum.triggerAttackRelease("C2", 0.15);
-        });
-    }
+		// --- Tone.js drum playback ---
+		if (this._Tone && this._toneDrum && notes !== null) {
+			if (this._Tone.context.state !== 'running') {
+				this._Tone.start();
+			}
+			// Play each drum note as a short "kick" (can be improved for more realism)
+			notesArr.forEach(n => {
+				this._toneDrum.triggerAttackRelease('C2', 0.15);
+			});
+		}
 
-    if (notes === null) {
-        // Stay idle if no notes should be played
-        this[$activeDrumNotes] = null;
-        return this._idleDrums();
-    }
+		if (notes === null) {
+			// Stay idle if no notes should be played
+			this[$activeDrumNotes] = null;
+			return this._idleDrums();
+		}
 
-    // Store played notes, so we can stop them the next time anything is played
-    this[$activeDrumNotes] = [idxToMidi(notesArr[0])];
-    if (notesArr[1]) {
-        this[$activeDrumNotes].push(idxToMidi(notesArr[1]));
-    }
+		// Store played notes, so we can stop them the next time anything is played
+		this[$activeDrumNotes] = [idxToMidi(notesArr[0])];
+		if (notesArr[1]) {
+			this[$activeDrumNotes].push(idxToMidi(notesArr[1]));
+		}
 
-    // Show the appropriate state in the UI
-    const note0 = drum[notesArr[0] % drum.length];
-    const note1 = drum[notesArr[1] % drum.length] || note0;
+		// Show the appropriate state in the UI
+		const note0 = drum[notesArr[0] % drum.length];
+		const note1 = drum[notesArr[1] % drum.length] || note0;
 
-    this._show(FACE(note0.face));
+		this._show(FACE(note0.face));
 
-    const layer0 = note0.layer;
-    this._show(layer0);
-    this._toggle(layer0, c.CLASS_HIT, true);
+		const layer0 = note0.layer;
+		this._show(layer0);
+		this._toggle(layer0, c.CLASS_HIT, true);
 
-    const hideLeftHand = !(
-        note0.hands.includes(c.SIDE_LEFT) && note1.hands.includes(c.SIDE_LEFT)
-    );
-    this._toggle(DRUM_HAND_LEFT, c.CLASS_HIDDEN, hideLeftHand);
+		const hideLeftHand = !(
+			note0.hands.includes(c.SIDE_LEFT) && note1.hands.includes(c.SIDE_LEFT)
+		);
+		this._toggle(DRUM_HAND_LEFT, c.CLASS_HIDDEN, hideLeftHand);
 
-    const hideRightHand = !(
-        note0.hands.includes(c.SIDE_RIGHT) && note1.hands.includes(c.SIDE_RIGHT)
-    );
-    this._toggle(DRUM_HAND_RIGHT, c.CLASS_HIDDEN, hideRightHand);
+		const hideRightHand = !(
+			note0.hands.includes(c.SIDE_RIGHT) && note1.hands.includes(c.SIDE_RIGHT)
+		);
+		this._toggle(DRUM_HAND_RIGHT, c.CLASS_HIDDEN, hideRightHand);
 
-    const hideCowbell = note0.cowbell === false || note1.cowbell === false;
-    this._toggle(COWBELL, c.CLASS_HIDDEN, hideCowbell);
+		const hideCowbell = note0.cowbell === false || note1.cowbell === false;
+		this._toggle(COWBELL, c.CLASS_HIDDEN, hideCowbell);
 
-    // When two notes are played, only show both
-    // if the gorilla can pull it off
-    if (
-        note0.hands === 'lr' ||
-        note1.hands === 'lr' ||
-        (note0.cowbell === false || note1.cowbell === false)
-    ) {
-        const layer1 = note1.layer;
-        this._show(layer1);
-        this._toggle(layer1, c.CLASS_HIT, true);
-    }
-}
+		// When two notes are played, only show both
+		// if the gorilla can pull it off
+		if (
+			note0.hands === 'lr' ||
+			note1.hands === 'lr' ||
+			(note0.cowbell === false || note1.cowbell === false)
+		) {
+			const layer1 = note1.layer;
+			this._show(layer1);
+			this._toggle(layer1, c.CLASS_HIT, true);
+		}
+	}
 
 	/**
 	 * Reset shared parts of the UI
@@ -623,7 +634,7 @@ import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm').then(Tone => {
 			'#octdown',
 			'#octup'
 		]);
-    }
+	}
 	/**
 	 * Reset the piano keys UI
 	 */
@@ -891,33 +902,65 @@ import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm').then(Tone => {
 		};
 	}
 
-    _onKeyDown(e) {
-    // Map keys to MIDI notes (example: A=60, S=62, D=64, F=65, G=67, H=69, J=71, K=72)
-    const keyMap = {
-        'a': 60, // C4
-        's': 62, // D4
-        'd': 64, // E4
-        'f': 65, // F4
-        'g': 67, // G4
-        'h': 69, // A4
-        'j': 71, // B4
-        'k': 72  // C5
-    };
-    const note = keyMap[e.key.toLowerCase()];
-    if (note !== undefined) {
-        this[$midi].noteon(this[$controlChannel], note);
-    }
-}
+	_initPads() {
+		const topNotes = [72, 74, 76, 77, 79, 81, 83, 84];
+		const bottomNotes = [60, 62, 64, 65, 67, 69, 71, 72];
 
-_onKeyUp(e) {
-    const keyMap = {
-        'a': 60, 's': 62, 'd': 64, 'f': 65, 'g': 67, 'h': 69, 'j': 71, 'k': 72
-    };
-    const note = keyMap[e.key.toLowerCase()];
-    if (note !== undefined) {
-        this[$midi].noteoff(this[$controlChannel], note);
-    }
-}
+		const top = document.createElement('div');
+		top.classList.add('pad', 'pad-top');
+		const bottom = document.createElement('div');
+		bottom.classList.add('pad', 'pad-bottom');
+
+		this.shadow.appendChild(top);
+		this.shadow.appendChild(bottom);
+
+		this._setupPad(top, topNotes);
+		this._setupPad(bottom, bottomNotes);
+	}
+
+	_setupPad(el, notes) {
+		let current = null;
+
+		const getNote = e => {
+			const rect = el.getBoundingClientRect();
+			const x = e.clientX - rect.left;
+			const idx = Math.max(
+				0,
+				Math.min(notes.length - 1, Math.floor((x / rect.width) * notes.length))
+			);
+			return notes[idx];
+		};
+
+		const play = e => {
+			const note = getNote(e);
+			if (current !== note) {
+				if (current !== null) {
+					this[$midi].noteoff(this[$controlChannel], current);
+				}
+				this[$midi].noteon(this[$controlChannel], note);
+				current = note;
+			}
+		};
+
+		const stop = () => {
+			if (current !== null) {
+				this[$midi].noteoff(this[$controlChannel], current);
+				current = null;
+			}
+		};
+
+		el.addEventListener('pointerdown', e => {
+			el.setPointerCapture(e.pointerId);
+			play(e);
+		});
+		el.addEventListener('pointermove', e => {
+			if (e.buttons) {
+				play(e);
+			}
+		});
+		el.addEventListener('pointerup', stop);
+		el.addEventListener('pointerleave', stop);
+	}
 
 	/**
 	 * Hide element
@@ -938,29 +981,29 @@ _onKeyUp(e) {
 	 * classList.toggle shorthand
 	 * @param  {string|Array} selector
 	 */
-_toggle(selector, className, force) {
-    asArrayLike(selector).forEach(s => {
-        const el = this.shadow.querySelector(s);
-        if (el) {
-            el.classList.toggle(className, force);
-        }
-    });
-}
+	_toggle(selector, className, force) {
+		asArrayLike(selector).forEach(s => {
+			const el = this.shadow.querySelector(s);
+			if (el) {
+				el.classList.toggle(className, force);
+			}
+		});
+	}
 
-_sendSettingSizing() {
-    const hold = this.shadow.querySelector('#hold');
-    const drum = this.shadow.querySelector('#drum');
-    const settings = this.shadow.querySelector('rbbrto-settings');
-    const svg = this.shadow.querySelector('svg');
-    if (hold && drum && settings && svg) {
-        const holdRect = hold.getBoundingClientRect();
-        const drumRect = drum.getBoundingClientRect();
-        const settingsStyle = settings.style;
-        settingsStyle.setProperty('--settings-height', `${holdRect.height}px`);
-        settingsStyle.setProperty('--settings-width', `${drumRect.width}px`);
-        svg.style.setProperty('--settings-height', `${holdRect.height}px`);
-    }
-}
+	_sendSettingSizing() {
+		const hold = this.shadow.querySelector('#hold');
+		const drum = this.shadow.querySelector('#drum');
+		const settings = this.shadow.querySelector('rbbrto-settings');
+		const svg = this.shadow.querySelector('svg');
+		if (hold && drum && settings && svg) {
+			const holdRect = hold.getBoundingClientRect();
+			const drumRect = drum.getBoundingClientRect();
+			const settingsStyle = settings.style;
+			settingsStyle.setProperty('--settings-height', `${holdRect.height}px`);
+			settingsStyle.setProperty('--settings-width', `${drumRect.width}px`);
+			svg.style.setProperty('--settings-height', `${holdRect.height}px`);
+		}
+	}
 
 	_printWelcomeText() {
 		console.log(
