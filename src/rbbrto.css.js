@@ -136,12 +136,28 @@ export default `
 
 
 rbbrto-settings {
-	position: absolute;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	height: var(--settings-height, 10%);
-	/* opacity:  0.5; */
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        height: var(--settings-height, 10%);
+        /* opacity:  0.5; */
+}
+
+.pad {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 50%;
+        touch-action: none;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.05);
+}
+.pad-top {
+        top: 0;
+}
+.pad-bottom {
+        top: 50%;
 }
 
 `;
