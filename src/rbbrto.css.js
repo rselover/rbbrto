@@ -96,12 +96,12 @@ export default `
 	}
 }
 
-/* Synth toe animation */
+/* Synth hand animation */
 #hbld.hit,
 #hbrd.hit {
-        animation-name: toe-hit;
+	animation-name: hand-hit;
 }
-@keyframes toe-hit {
+@keyframes hand-hit {
 	from {
 		transform: translate(var(--translate-x), -2.93px);
 	}
