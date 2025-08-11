@@ -1,18 +1,18 @@
 import { drumPatterns, synthPatterns } from './patterns.js';
 import drum, {
-	DRUM_HAND_LEFT,
-	DRUM_HAND_RIGHT,
-	COWBELL,
-	FACE
+        DRUM_FOOT_LEFT,
+        DRUM_FOOT_RIGHT,
+        COWBELL,
+        FACE
 } from './drum.js';
 import {
-	SYNTH_LEFT,
-	SYNTH_BITS_LEFT,
-	KEY_GUIDE,
-	SYNTH_IDLE_HAND_LEFT,
-	SYNTH_IDLE_HAND_RIGHT,
-	SYNTH_PLAY_HAND_LEFT,
-	SYNTH_PLAY_HAND_RIGHT
+        SYNTH_LEFT,
+        SYNTH_BITS_LEFT,
+        KEY_GUIDE,
+        SYNTH_IDLE_FOOT_LEFT,
+        SYNTH_IDLE_FOOT_RIGHT,
+        SYNTH_PLAY_FOOT_LEFT,
+        SYNTH_PLAY_FOOT_RIGHT
 } from './synth.js';
 import MIDI, { whiteKeys, idxToMidi } from './midi.js';
 import css from './rbbrto.css.js';
@@ -463,34 +463,34 @@ class Rbbrto extends HTMLElement {
 			this[$activeSynthNotes].push(idxToMidi(notesArr[1]));
 		}
 
-		if (notesArr.length === 1) {
-			// Play single notes with the appropriate hand
+                if (notesArr.length === 1) {
+                        // Play single notes with the appropriate foot
 			const relNote = idxToMidi(notesArr[0]) % 12;
 			if (relNote < 6) {
-				this._hide(SYNTH_IDLE_HAND_LEFT);
-				this._hitSynthKey(SYNTH_PLAY_HAND_LEFT, relNote);
+                            this._hide(SYNTH_IDLE_FOOT_LEFT);
+                            this._hitSynthKey(SYNTH_PLAY_FOOT_LEFT, relNote);
 			} else {
-				this._hide(SYNTH_IDLE_HAND_RIGHT);
-				this._hitSynthKey(SYNTH_PLAY_HAND_RIGHT, relNote);
+                            this._hide(SYNTH_IDLE_FOOT_RIGHT);
+                            this._hitSynthKey(SYNTH_PLAY_FOOT_RIGHT, relNote);
 			}
-		} else {
-			// Play multiple notes with two hands
-			this._hide([SYNTH_IDLE_HAND_LEFT, SYNTH_IDLE_HAND_RIGHT]);
+                } else {
+                        // Play multiple notes with two feet
+                    this._hide([SYNTH_IDLE_FOOT_LEFT, SYNTH_IDLE_FOOT_RIGHT]);
 			const relNotesArr = [
 				idxToMidi(notesArr[0]) % 12,
 				idxToMidi(notesArr[1]) % 12
 			];
-			this._hitSynthKey(SYNTH_PLAY_HAND_LEFT, Math.min(...relNotesArr));
-			this._hitSynthKey(SYNTH_PLAY_HAND_RIGHT, Math.max(...relNotesArr));
+                    this._hitSynthKey(SYNTH_PLAY_FOOT_LEFT, Math.min(...relNotesArr));
+                    this._hitSynthKey(SYNTH_PLAY_FOOT_RIGHT, Math.max(...relNotesArr));
 		}
 	}
 
-	/**
-	 * Animate hitting a key with a hand
-	 * @param  {string} hand DOM selector
-	 * @param  {int} relNote Relative note position
-	 */
-	_hitSynthKey(hand, relNote) {
+        /**
+         * Animate hitting a key with a foot
+         * @param  {string} foot DOM selector
+         * @param  {int} relNote Relative note position
+         */
+        _hitSynthKey(foot, relNote) {
 		// Memoize the key positions to improve performance
 		if (!this[$synthKeyX]) {
 			this[$synthKeyX] = [];
@@ -506,17 +506,17 @@ class Rbbrto extends HTMLElement {
 				.getAttribute('x1');
 		}
 
-		this._show(hand);
+                this._show(foot);
 
-		// Calculate the x-offset of the hand and set it in a CSS custom property
+                // Calculate the x-offset of the foot and set it in a CSS custom property
 		// (it will be used in the CSS keyframe animation)
 		const xDiff = this[$synthKeyX][relNote] - this[$synthKeyX][0];
-		this.shadow
-			.querySelector(hand)
-			.style.setProperty('--translate-x', `${xDiff}px`);
+                this.shadow
+                        .querySelector(foot)
+                        .style.setProperty('--translate-x', `${xDiff}px`);
 
-		// Animate the hand and the key using CSS
-		this._toggle([`#bk${relNote}`, hand], c.CLASS_HIT, true);
+                // Animate the foot and the key using CSS
+                this._toggle([`#bk${relNote}`, foot], c.CLASS_HIT, true);
 
 		this._toggle('#synthb', c.CLASS_FADED, false);
 	}
@@ -595,26 +595,26 @@ class Rbbrto extends HTMLElement {
 		this._show(layer0);
 		this._toggle(layer0, c.CLASS_HIT, true);
 
-		const hideLeftHand = !(
-			note0.hands.includes(c.SIDE_LEFT) && note1.hands.includes(c.SIDE_LEFT)
-		);
-		this._toggle(DRUM_HAND_LEFT, c.CLASS_HIDDEN, hideLeftHand);
+                const hideLeftFoot = !(
+                        note0.feet.includes(c.SIDE_LEFT) && note1.feet.includes(c.SIDE_LEFT)
+                );
+                this._toggle(DRUM_FOOT_LEFT, c.CLASS_HIDDEN, hideLeftFoot);
 
-		const hideRightHand = !(
-			note0.hands.includes(c.SIDE_RIGHT) && note1.hands.includes(c.SIDE_RIGHT)
-		);
-		this._toggle(DRUM_HAND_RIGHT, c.CLASS_HIDDEN, hideRightHand);
+                const hideRightFoot = !(
+                        note0.feet.includes(c.SIDE_RIGHT) && note1.feet.includes(c.SIDE_RIGHT)
+                );
+                this._toggle(DRUM_FOOT_RIGHT, c.CLASS_HIDDEN, hideRightFoot);
 
 		const hideCowbell = note0.cowbell === false || note1.cowbell === false;
 		this._toggle(COWBELL, c.CLASS_HIDDEN, hideCowbell);
 
-		// When two notes are played, only show both
-		// if the gorilla can pull it off
-		if (
-			note0.hands === 'lr' ||
-			note1.hands === 'lr' ||
-			(note0.cowbell === false || note1.cowbell === false)
-		) {
+                // When two notes are played, only show both
+                // if the feet can pull it off
+                if (
+                        note0.feet === 'lr' ||
+                        note1.feet === 'lr' ||
+                        (note0.cowbell === false || note1.cowbell === false)
+                ) {
 			const layer1 = note1.layer;
 			this._show(layer1);
 			this._toggle(layer1, c.CLASS_HIT, true);
@@ -710,7 +710,7 @@ class Rbbrto extends HTMLElement {
 		this._show('#druma');
 		this._hide('#drumb');
 
-		this._hide([DRUM_HAND_LEFT, DRUM_HAND_RIGHT, FACE(0), FACE(1)]);
+            this._hide([DRUM_FOOT_LEFT, DRUM_FOOT_RIGHT, FACE(0), FACE(1)]);
 
 		this._toggle(COWBELL, c.CLASS_FADED, !this.playback);
 
@@ -729,10 +729,10 @@ class Rbbrto extends HTMLElement {
 	}
 
 	/**
-	 * Set the drum gorilla to stay idle
+     * Set the drum feet to stay idle
 	 */
 	_idleDrums() {
-		this._show([DRUM_HAND_LEFT, DRUM_HAND_RIGHT, FACE(0), COWBELL]);
+            this._show([DRUM_FOOT_LEFT, DRUM_FOOT_RIGHT, FACE(0), COWBELL]);
 		this._toggle(COWBELL, c.CLASS_FADED, !this[$drumPlayback]);
 	}
 
@@ -747,8 +747,8 @@ class Rbbrto extends HTMLElement {
 				'#haru',
 				'#halu',
 				KEY_GUIDE,
-				SYNTH_PLAY_HAND_LEFT,
-				SYNTH_PLAY_HAND_RIGHT
+                            SYNTH_PLAY_FOOT_LEFT,
+                            SYNTH_PLAY_FOOT_RIGHT
 			].concat(SYNTH_LEFT)
 		);
 		this.shadow.querySelectorAll(SYNTH_BITS_LEFT).forEach(bit => {
@@ -761,7 +761,7 @@ class Rbbrto extends HTMLElement {
 
 		this._show('#synthb');
 		this._toggle('#synthb', c.CLASS_FADED, true);
-		this._show([SYNTH_IDLE_HAND_LEFT, SYNTH_IDLE_HAND_RIGHT]);
+            this._show([SYNTH_IDLE_FOOT_LEFT, SYNTH_IDLE_FOOT_RIGHT]);
 
 		for (let k = 0; k < 12; k++) {
 			this._toggle(`#bk${k}`, c.CLASS_HIT, false);
@@ -772,8 +772,8 @@ class Rbbrto extends HTMLElement {
 	 * Set the synth dude to idle
 	 */
 	_idleSynths() {
-		this._hide([SYNTH_PLAY_HAND_LEFT, SYNTH_PLAY_HAND_RIGHT]);
-		this._show([SYNTH_IDLE_HAND_LEFT, SYNTH_IDLE_HAND_RIGHT]);
+            this._hide([SYNTH_PLAY_FOOT_LEFT, SYNTH_PLAY_FOOT_RIGHT]);
+            this._show([SYNTH_IDLE_FOOT_LEFT, SYNTH_IDLE_FOOT_RIGHT]);
 		this._toggle('#synthb', c.CLASS_FADED, !this[$synthPlayback]);
 	}
 
