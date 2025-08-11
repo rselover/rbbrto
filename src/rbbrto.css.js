@@ -96,18 +96,18 @@ export default `
 	}
 }
 
-/* Synth hand animation */
-#hbld.hit,
-#hbrd.hit {
-	animation-name: hand-hit;
+/* Synth foot animation */
+#ftld.hit,
+#ftrd.hit {
+        animation-name: toe-hit;
 }
-@keyframes hand-hit {
-	from {
-		transform: translate(var(--translate-x), -2.93px);
-	}
-	to {
-		transform: translate(var(--translate-x), 0);
-	}
+@keyframes toe-hit {
+        from {
+                transform: translate(var(--translate-x), -2.93px);
+        }
+        to {
+                transform: translate(var(--translate-x), 0);
+        }
 }
 
 /* Synth key animation */
