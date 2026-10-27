@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Continuous duet regression</title><link rel="stylesheet" href="../src/style.css">
+<script>
+// Fixtures must never send test notes to connected hardware.
+Object.defineProperty(navigator,'requestMIDIAccess',{value:async()=>({inputs:new Map(),outputs:new Map()})});
+</script>
+<script type="module" src="../src/settings.js"></script><script type="module" src="../src/rbbrto.js"></script></head>
+<body><output id="result" style="position:fixed;top:0;left:0;z-index:99;background:#111;color:white;padding:12px">Checking continuous playback…</output><rbbrto-sequencer control-channel="14" drum-channel="1" synth-channel="8" bpm="125"></rbbrto-sequencer>
+<script type="module">
+await customElements.whenDefined('rbbrto-sequencer');
+const app=document.querySelector('rbbrto-sequencer'),root=app.shadowRoot;
+const left=root.querySelector('.drum-bank'),right=root.querySelector('.synth-bank');
+left.setPointerCapture=right.setPointerCapture=()=>{};
+const fire=(bank,type,id,index)=>{const rect=root.querySelector(`[data-pattern="${index}"]`).getBoundingClientRect();bank.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:id,pointerType:'touch',button:0,clientX:rect.left+rect.width/2,clientY:rect.top+rect.height/2}));};
+const nativeRAF=window.requestAnimationFrame,nativeCancel=window.cancelAnimationFrame;
+const frames=new Map();let id=0,clock=0;
+window.requestAnimationFrame=fn=>{frames.set(++id,fn);return id;};window.cancelAnimationFrame=id=>frames.delete(id);
+let passed=0;
+try {
+ for(let drum=0;drum<7;drum++) for(let synth=7;synth<14;synth++) {
+  const hits={drum:0,synth:0};
+  app._Tone={start:async()=>{},context:{state:'running'},Frequency:note=>({toNote:()=>String(note)})};
+  app._toneDrum={triggerAttackRelease(){hits.drum++;},triggerRelease(){}};
+  app._toneSynth={triggerAttackRelease(){hits.synth++;},releaseAll(){}};
+  fire(left,'pointerdown',1,drum);fire(right,'pointerdown',2,synth);
+  for(let frame=0;frame<900;frame++) {
+   if(frame===720) hits.drum=hits.synth=0;
+   if(frames.size!==1) throw new Error(`beat loop count ${frames.size}`);
+   const [key,fn]=frames.entries().next().value;frames.delete(key);clock+=1000/60;fn(clock);
+  }
+  if(!app.playback||!hits.drum||!hits.synth)throw new Error(`duet stopped: ${drum}/${synth}`);
+  fire(left,'pointerup',1,drum);fire(right,'pointerup',2,synth);
+  if(app.playback||frames.size)throw new Error('release left a running beat');
+  passed++;
+ }
+ document.querySelector('#result').textContent=`PASS — all ${passed} drum/synth pairs continued beyond multiple loops using the real scene`;
+} catch(error) {document.querySelector('#result').textContent=`FAIL after ${passed} pairs — ${error.message}`;}
+finally {window.requestAnimationFrame=nativeRAF;window.cancelAnimationFrame=nativeCancel;}
+</script></body></html>

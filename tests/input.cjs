@@ -159,7 +159,7 @@ test('real sequencer callbacks keep drums and synth together and restore held pa
 			/^import[\s\S]*?from ['"][^'"]+['"];\n/gm,
 			''
 		) +
-			'\nthis.symbols = { $playback, $drumPlayback, $synthPlayback, $activeDrumNotes, $activeSynthNotes, $controlChannel, $midi };',
+			'\nthis.symbols = { $playback, $drumPlayback, $synthPlayback, $activeDrumNotes, $activeSynthNotes, $controlChannel, $midi, $drumPlayhead, $synthPlayhead };',
 		ctx
 	);
 	const seq = Object.create(Sequencer.prototype);
@@ -187,7 +187,11 @@ test('real sequencer callbacks keep drums and synth together and restore held pa
 	);
 	input.start('a', 53);
 	input.start('q', 65);
+	seq[ctx.symbols.$drumPlayhead] = 5;
+	seq[ctx.symbols.$synthPlayhead] = 3;
 	input.start('s', 55);
+	assert.equal(seq[ctx.symbols.$drumPlayhead], 5);
+	assert.equal(seq[ctx.symbols.$synthPlayhead], 3);
 	assert.equal(seq.drumPattern, 1);
 	input.stop('s');
 	assert.equal(seq.drumPattern, 0);
@@ -197,6 +201,26 @@ test('real sequencer callbacks keep drums and synth together and restore held pa
 	input.stop('a');
 	assert.equal(seq.playback, true);
 	input.stop('q');
+	assert.equal(seq.playback, false);
+	const offs = [];
+	midi.send = (...args) => offs.push([...args, midi.noteTimestamp]);
+	midi.noteon(14, 53);
+	midi.noteon(14, 65);
+	seq[ctx.symbols.$activeSynthNotes] = [60, 64];
+	midi.noteTimestamp = 999;
+	let releases = 0;
+	seq._toneSynth = { releaseAll: () => releases++ };
+	midi.noteoff(14, 65);
+	assert.equal(seq.playback, true);
+	assert.equal(releases, 1);
+	assert(offs.every(args => args.at(-1) === 0));
+	assert.equal(seq[ctx.symbols.$activeSynthNotes], null);
+	midi.noteoff(14, 65); // Unmatched release must not stop the other instrument.
+	assert.equal(seq.playback, true);
+	midi.noteoff(14, 53);
+	midi.noteon(14, 53);
+	midi.noteon(14, 53);
+	midi.noteoff(14, 53);
 	assert.equal(seq.playback, false);
 });
 
@@ -232,7 +256,8 @@ test('two-note drum steps trigger the monophonic preview once; rests stay silent
 	);
 	const seq = Object.create(Sequencer.prototype);
 	seq[ctx.active] = null;
-	seq[ctx.midi] = { send() {} };
+	const messages=[];
+	seq[ctx.midi] = { send: (...args)=>messages.push(args) };
 	for (const name of [
 		'_updatePatternUI',
 		'_resetDrums',
@@ -246,9 +271,58 @@ test('two-note drum steps trigger the monophonic preview once; rests stay silent
 	seq._toneDrum = { triggerAttackRelease: (...args) => attacks.push(args) };
 	const visuals = [];
 	seq._scene = { drum: notes => visuals.push(notes) };
-	seq._playDrumNotes([0, 1]);
+	seq._playDrumNotes([1, 0]);
 	assert.equal(attacks.length, 1);
-	assert.deepEqual(visuals, [[0, 1]]);
+	assert.deepEqual(visuals, [[1, 0]]);
+	assert.deepEqual(messages.filter(args=>args[1]==='noteon').map(args=>args[2]),[54,53]);
 	seq._playDrumNotes(null);
 	assert.equal(attacks.length, 1);
+});
+
+test('two-column touch grips hit rows by geometry, support duet, and discard canceled pointers', () => {
+	const { input, events } = setup();
+	const buttons = Array.from({ length: 7 }, (_, i) => ({
+		getBoundingClientRect: () => ({
+			left: (i % 2) * 60,
+			right: (i % 2) * 60 + 50,
+			top: Math.floor(i / 2) * 60,
+			bottom: Math.floor(i / 2) * 60 + 50
+		})
+	}));
+	const grip = surface({
+		querySelectorAll: () => buttons,
+		setPointerCapture() {}
+	});
+	input.pad(grip, notes.slice(0, 7));
+	const p = (id, x, y) => ({
+		pointerId: id,
+		clientX: x,
+		clientY: y,
+		button: 0,
+		preventDefault() {}
+	});
+	grip.handlers.pointerdown(p(1, 20, 20));
+	grip.handlers.pointermove(p(1, 20, 140));
+	assert.deepEqual(events, [['on', 53], ['on', 60], ['off', 53]]);
+	grip.handlers.pointerdown(p(2, 80, 80));
+	assert.equal(input.held.size, 2);
+	grip.handlers.pointercancel(p(1, 20, 140));
+	assert.equal(input.held.size, 1);
+	input.stopAll();
+	const count = events.length;
+	grip.handlers.pointermove(p(2, 80, 20));
+	assert.equal(events.length, count);
+	assert.equal(input.held.size, 0);
+});
+
+test('letter controls still play when a pattern button has focus', () => {
+	const { input, events } = setup();
+	const win = surface(),
+		page = surface();
+	input.keyboard(win, page);
+	win.handlers.keydown(
+		key('KeyA', { composedPath: () => [{ tagName: 'BUTTON' }] })
+	);
+	win.handlers.keyup(key('KeyA'));
+	assert.deepEqual(events, [['on', 53], ['off', 53]]);
 });

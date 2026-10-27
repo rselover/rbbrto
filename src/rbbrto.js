@@ -192,18 +192,8 @@ class Rbbrto extends HTMLElement {
 				this._beatFrame = requestAnimationFrame(this._playBeat.bind(this));
 			} else {
 				cancelAnimationFrame(this._beatFrame);
-				if (this._toneSynth) this._toneSynth.releaseAll();
-				// Send noteoff to all held notes when stopping playback
-				if (this[$activeDrumNotes] !== null) {
-					this[$activeDrumNotes].forEach(n =>
-						this[$midi].send(this[$drumChannel], 'noteoff', n, 127)
-					);
-				}
-				if (this[$activeSynthNotes] !== null) {
-					this[$activeSynthNotes].forEach(n =>
-						this[$midi].send(this[$synthChannel], 'noteoff', n, 127)
-					);
-				}
+				this._stopInstrument('drum');
+				this._stopInstrument('synth');
 			}
 			this[$playback] = playback;
 			if (!playback) {
@@ -420,7 +410,7 @@ class Rbbrto extends HTMLElement {
 				this[$activeSynthNotes][0],
 				127
 			);
-			if (this[$activeSynthNotes][1]) {
+			if (this[$activeSynthNotes].length > 1) {
 				midi.send(
 					this[$synthChannel],
 					'noteoff',
@@ -433,12 +423,13 @@ class Rbbrto extends HTMLElement {
 		// Send new notes to MIDI out
 		if (notes !== null) {
 			midi.send(this[$synthChannel], 'noteon', idxToMidi(notesArr[0]), 127);
-			if (notesArr[1]) {
+			if (notesArr.length > 1) {
 				midi.send(this[$synthChannel], 'noteon', idxToMidi(notesArr[1]), 127);
 			}
 		} else {
 			// Stay idle if no notes should be played
 			this[$activeSynthNotes] = null;
+			this._toneSynth?.releaseAll?.();
 			return this._idleSynths();
 		}
 
@@ -456,7 +447,7 @@ class Rbbrto extends HTMLElement {
 
 		// Store played notes, so we can stop them the next time anything is played
 		this[$activeSynthNotes] = [idxToMidi(notesArr[0])];
-		if (notesArr[1]) {
+		if (notesArr.length > 1) {
 			this[$activeSynthNotes].push(idxToMidi(notesArr[1]));
 		}
 
@@ -486,7 +477,7 @@ class Rbbrto extends HTMLElement {
 		// Stop playing the previous notes
 		if (this[$activeDrumNotes] !== null) {
 			midi.send(this[$drumChannel], 'noteoff', this[$activeDrumNotes][0], 127);
-			if (this[$activeDrumNotes][1]) {
+			if (this[$activeDrumNotes].length > 1) {
 				midi.send(
 					this[$drumChannel],
 					'noteoff',
@@ -499,7 +490,7 @@ class Rbbrto extends HTMLElement {
 		// Send new notes to MIDI out
 		if (notes !== null) {
 			midi.send(this[$drumChannel], 'noteon', idxToMidi(notesArr[0]), 127);
-			if (notesArr[1]) {
+			if (notesArr.length > 1) {
 				midi.send(this[$drumChannel], 'noteon', idxToMidi(notesArr[1]), 127);
 			}
 		}
@@ -521,7 +512,7 @@ class Rbbrto extends HTMLElement {
 
 		// Store played notes, so we can stop them the next time anything is played
 		this[$activeDrumNotes] = [idxToMidi(notesArr[0])];
-		if (notesArr[1]) {
+		if (notesArr.length > 1) {
 			this[$activeDrumNotes].push(idxToMidi(notesArr[1]));
 		}
 
@@ -543,6 +534,21 @@ class Rbbrto extends HTMLElement {
 			drumPattern: this[$drumPattern],
 			synthPattern: this[$synthPattern]
 		});
+	}
+
+	_stopInstrument(instrument) {
+		const active = instrument === 'drum' ? $activeDrumNotes : $activeSynthNotes;
+		const channel =
+			instrument === 'drum' ? this[$drumChannel] : this[$synthChannel];
+		const scheduled = this[$midi].noteTimestamp;
+		this[$midi].noteTimestamp = 0;
+		for (const note of this[active] || [])
+			this[$midi].send(channel, 'noteoff', note, 127);
+		this[$midi].noteTimestamp = scheduled;
+		this[active] = null;
+		if (instrument === 'synth') this._toneSynth?.releaseAll?.();
+		else this._toneDrum?.triggerRelease?.();
+		this._scene?.clear(instrument);
 	}
 
 	_resetDrums() {
@@ -593,6 +599,8 @@ class Rbbrto extends HTMLElement {
 				this[$displayInstrument] = 'drum';
 				this[$drumPlayback] = true;
 				this.drumPattern = patternIdx;
+				const previous = drumPatterns.indexOf(patternIdx);
+				if (previous !== -1) drumPatterns.splice(previous, 1);
 				drumPatterns.push(this.drumPattern);
 			} else {
 				// Right side is for synths
@@ -603,6 +611,8 @@ class Rbbrto extends HTMLElement {
 				this[$displayInstrument] = 'synth';
 				this[$synthPlayback] = true;
 				this.synthPattern = patternIdx;
+				const previous = synthPatterns.indexOf(patternIdx);
+				if (previous !== -1) synthPatterns.splice(previous, 1);
 				synthPatterns.push(this.synthPattern);
 			}
 
@@ -632,17 +642,11 @@ class Rbbrto extends HTMLElement {
 				// Either jump back to another pattern still being held down,
 				// or stop playback of drums
 				const idx = drumPatterns.lastIndexOf(patternIdx);
-				if (idx !== -1) {
-					drumPatterns.splice(idx, 1);
-				}
+				if (idx === -1) return;
+				drumPatterns.splice(idx, 1);
 
 				if (drumPatterns.length === 0) {
-					// Send noteoff to all held notes when stopping playback
-					if (this[$activeDrumNotes] !== null) {
-						this[$activeDrumNotes].forEach(n =>
-							this[$midi].send(this[$drumChannel], 'noteoff', n, 127)
-						);
-					}
+					this._stopInstrument('drum');
 					if (synthPatterns.length === 0) {
 						// If there would be no drums and synths played, we stop playback
 						this.playback = false;
@@ -657,17 +661,11 @@ class Rbbrto extends HTMLElement {
 				}
 			} else {
 				const idx = synthPatterns.lastIndexOf(patternIdx);
-				if (idx !== -1) {
-					synthPatterns.splice(idx, 1);
-				}
+				if (idx === -1) return;
+				synthPatterns.splice(idx, 1);
 
 				if (synthPatterns.length === 0) {
-					if (this[$activeSynthNotes] !== null) {
-						// Send noteoff to all held notes when stopping playback
-						this[$activeSynthNotes].forEach(n =>
-							this[$midi].send(this[$synthChannel], 'noteoff', n, 127)
-						);
-					}
+					this._stopInstrument('synth');
 					if (drumPatterns.length === 0) {
 						// If there would be no drums and synths played, we stop playback
 						this.playback = false;
