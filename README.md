@@ -9,7 +9,7 @@ The artwork is native SVG. The feet face upward at rest. Drum and synth steps de
 - Hold **A S D F G H J** for seven drum patterns.
 - Hold **Q W E R T Y U** for seven synth patterns.
 - Hold keys from both rows for a duet. Release the newest key to return to the previous held pattern.
-- The left drum grip and right synth grip form a yoke around the stage. On a phone or tablet, hold and slide over the buttons in either grip; rows and gaps are hit-tested using the actual button bounds. Each pointer is tracked independently, so both thumbs can play together.
+- The left drum bank and right synth bank curve around the stage like `( app )`, with one large pill-shaped touch button per row. On a phone or tablet, hold and slide over the buttons in either grip; rows and gaps are hit-tested using the actual button bounds. Each pointer is tracked independently, so both thumbs can play together.
 - Tab to a pattern button and hold Space or Enter to play it.
 - Change tempo with the BPM field (30–240). Footer buttons cycle MIDI channels 1–16.
 
@@ -33,6 +33,6 @@ The artwork replaces the original gorilla/professor template and its hand-based 
 
 The sequencer pattern data matches `sampi/finger` (only naming comments differ). While an instrument is active, pattern changes preserve its playhead, and releasing the newest held pattern falls back to the previous one. Each instrument now sends immediate MIDI note-offs and stops its local audio voice when its last control is released, even while the other instrument continues. Repeated hardware note-ons are de-duplicated and unmatched note-offs are ignored. Two-note steps correctly retain a second note with index zero.
 
-Portrait phones keep the stage above two thumb grips; landscape phones put the grips to either side. Buttons remain at least 44px in the supported 320px-and-up layouts. Scrolling remains available outside the grips. Physical multitouch devices and MIDI hardware still require device testing.
+Portrait and landscape phones keep the app between the two curved thumb banks. Buttons grow with available screen height, with a 44px minimum in short landscape screens. Buttons remain at least 44px in the supported 320px-and-up layouts. Scrolling remains available outside the grips. Physical multitouch devices and MIDI hardware still require device testing.
 
 Bass-note playback regression: some Finger synth patterns have negative internal indexes because their MIDI pitches are below 53. Visual indexes now wrap into the valid toe/key range without changing the musical pitches. Previously a missing toe element threw inside the shared beat loop and stopped playback. Tests exercise all 49 drum/synth pairs through several loops and each synth alone with drums added/removed. `/tests/browser-playback.html` repeats the duet check against real SVG elements using a simulated clock, touch pointers and audio/MIDI doubles. Both browser fixtures disable hardware MIDI output.
