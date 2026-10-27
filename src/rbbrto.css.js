@@ -144,6 +144,18 @@ rbbrto-settings {
         /* opacity:  0.5; */
 }
 
+.input-help {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        text-align: center;
+        color: #b7b2c9;
+        font: 12px/1.5 sans-serif;
+        pointer-events: none;
+        z-index: 11;
+}
+
 .pad {
         position: absolute;
         left: 0;
@@ -151,7 +163,7 @@ rbbrto-settings {
         height: calc((100% - var(--settings-height, 10%)) / 2);
         touch-action: none;
         z-index: 10;
-        background: rgba(255, 255, 255, 0.05);
+        background: transparent;
 }
 .pad-top {
         top: 0;

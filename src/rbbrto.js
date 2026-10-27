@@ -15,6 +15,7 @@ import {
 	SYNTH_PLAY_HAND_RIGHT
 } from './synth.js';
 import MIDI, { whiteKeys, idxToMidi } from './midi.js';
+import PatternInput from './input.js';
 import css from './rbbrto.css.js';
 import * as c from './constants.js';
 import { asArrayLike, stringBool } from './utils.js';
@@ -111,6 +112,12 @@ class Rbbrto extends HTMLElement {
 
 		// Look for MIDI devices
 		this._initMIDI();
+		this._input = new PatternInput(
+			Object.keys(whiteKeys).map(Number),
+			note => this[$midi].noteon(this[$controlChannel], note),
+			note => this[$midi].noteoff(this[$controlChannel], note),
+			() => this._unlockAudio()
+		);
 
 		// Show the SVG
 		this.shadow = this.attachShadow({ mode: 'open' });
@@ -180,7 +187,13 @@ class Rbbrto extends HTMLElement {
 			evt => (this.synthChannel = evt.detail)
 		);
 
-		this._initPads();
+		if (!this._padsInitialized) {
+			this._initPads();
+			this._padsInitialized = true;
+		}
+		if (!this._disconnectKeyboard) {
+			this._disconnectKeyboard = this._input.keyboard(window, document);
+		}
 	}
 
 	attributeChangedCallback(name, oldVal, newVal) {
@@ -207,8 +220,10 @@ class Rbbrto extends HTMLElement {
 				// Play the first note
 				this[$noteScheduled] = true;
 				// Start the main loop
-				requestAnimationFrame(this._playBeat.bind(this));
+				this._beatFrame = requestAnimationFrame(this._playBeat.bind(this));
 			} else {
+				cancelAnimationFrame(this._beatFrame);
+				if (this._toneSynth) this._toneSynth.releaseAll();
 				// Send noteoff to all held notes when stopping playback
 				if (this[$activeDrumNotes] !== null) {
 					this[$activeDrumNotes].forEach(n =>
@@ -222,6 +237,17 @@ class Rbbrto extends HTMLElement {
 				}
 			}
 			this[$playback] = playback;
+			if (!playback) {
+				this[$drumPlayback] = false;
+				this[$synthPlayback] = false;
+				this._resetDrums();
+				this._idleDrums();
+				this._resetSynths();
+				this._idleSynths();
+				this[$midi].noteTimestamp = 0;
+				this[$timer] = null;
+				this[$noteScheduled] = false;
+			}
 		}
 	}
 	get playback() {
@@ -382,7 +408,7 @@ class Rbbrto extends HTMLElement {
 
 		if (this[$playback]) {
 			// Continue playback
-			requestAnimationFrame(this._playBeat.bind(this));
+			this._beatFrame = requestAnimationFrame(this._playBeat.bind(this));
 		} else {
 			// Reset the UI if we're not playing
 			this._resetDrums();
@@ -568,9 +594,7 @@ class Rbbrto extends HTMLElement {
 				this._Tone.start();
 			}
 			// Play each drum note as a short "kick" (can be improved for more realism)
-			notesArr.forEach(n => {
-				this._toneDrum.triggerAttackRelease('C2', 0.15);
-			});
+			this._toneDrum.triggerAttackRelease('C2', 0.15);
 		}
 
 		if (notes === null) {
@@ -903,6 +927,10 @@ class Rbbrto extends HTMLElement {
 	}
 
 	_initPads() {
+		const help = document.createElement('div');
+		help.classList.add('input-help');
+		help.textContent = 'Hold to play · Drums: A S D F G H J · Synth: Q W E R T Y U';
+		this.shadow.appendChild(help);
 		const patternNotes = Object.keys(whiteKeys).map(Number);
 		const bottomNotes = patternNotes.slice(0, 7);
 		const topNotes = patternNotes.slice(7);
@@ -920,49 +948,19 @@ class Rbbrto extends HTMLElement {
 	}
 
 	_setupPad(el, notes) {
-		let current = null;
+		this._input.pad(el, notes);
+	}
 
-		const getNote = e => {
-			const rect = el.getBoundingClientRect();
-			const x = e.clientX - rect.left;
-			const idx = Math.max(
-				0,
-				Math.min(notes.length - 1, Math.floor((x / rect.width) * notes.length))
-			);
-			return notes[idx];
-		};
+	_unlockAudio() {
+		// AudioContext must resume in the input gesture, before the beat callback.
+		if (this._Tone) {
+			this._Tone.start().catch(error => console.warn('Audio could not start', error));
+		}
+	}
 
-		const play = e => {
-			const note = getNote(e);
-			if (current !== note) {
-				if (current !== null) {
-					this[$midi].noteoff(this[$controlChannel], current);
-				}
-				this[$midi].noteon(this[$controlChannel], note);
-				current = note;
-			}
-		};
-
-		const stop = () => {
-			if (current !== null) {
-				this[$midi].noteoff(this[$controlChannel], current);
-				current = null;
-			}
-		};
-
-		el.addEventListener('pointerdown', e => {
-			el.setPointerCapture(e.pointerId);
-			play(e);
-		});
-		el.addEventListener('pointermove', e => {
-			if (e.buttons) {
-				play(e);
-			}
-		});
-		el.addEventListener('pointerup', stop);
-		el.addEventListener('pointercancel', stop);
-		el.addEventListener('lostpointercapture', stop);
-		el.addEventListener('pointerleave', stop);
+	disconnectedCallback() {
+		if (this._disconnectKeyboard) this._disconnectKeyboard();
+		this._disconnectKeyboard = null;
 	}
 
 	/**
