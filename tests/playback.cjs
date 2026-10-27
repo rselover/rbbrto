@@ -160,3 +160,36 @@ test('every synth pattern loops alone, then survives adding and releasing drums'
 		assert.equal(seq.playback, false);
 	}
 });
+
+test('suspended Safari audio cannot freeze the beat loop and sound joins after unlock', () => {
+	const { seq, midi, messages, run } = sequencer();
+	seq._Tone.context.state = 'suspended';
+	seq._Tone.start = () => {
+		throw new Error('audio resume must not run in animation frames');
+	};
+	seq._toneSynth.triggerAttackRelease = seq._toneDrum.triggerAttackRelease = () => {
+		throw new Error('cannot schedule on a suspended audio clock');
+	};
+	midi.noteon(14, 53);
+	midi.noteon(14, 67);
+	assert.doesNotThrow(() => run(900));
+	assert.equal(seq.playback, true);
+	assert(
+		messages.some(
+			message =>
+				message.time > 12000 &&
+				message.channel === 8 &&
+				message.command === 'noteon'
+		)
+	);
+	let synth = 0,
+		drum = 0;
+	seq._Tone.context.state = 'running';
+	seq._toneSynth.triggerAttackRelease = () => synth++;
+	seq._toneDrum.triggerAttackRelease = () => drum++;
+	run(180);
+	assert(synth > 0 && drum > 0);
+	midi.noteoff(14, 53);
+	midi.noteoff(14, 67);
+	assert.equal(seq.playback, false);
+});

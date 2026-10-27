@@ -256,8 +256,8 @@ test('two-note drum steps trigger the monophonic preview once; rests stay silent
 	);
 	const seq = Object.create(Sequencer.prototype);
 	seq[ctx.active] = null;
-	const messages=[];
-	seq[ctx.midi] = { send: (...args)=>messages.push(args) };
+	const messages = [];
+	seq[ctx.midi] = { send: (...args) => messages.push(args) };
 	for (const name of [
 		'_updatePatternUI',
 		'_resetDrums',
@@ -274,7 +274,10 @@ test('two-note drum steps trigger the monophonic preview once; rests stay silent
 	seq._playDrumNotes([1, 0]);
 	assert.equal(attacks.length, 1);
 	assert.deepEqual(visuals, [[1, 0]]);
-	assert.deepEqual(messages.filter(args=>args[1]==='noteon').map(args=>args[2]),[54,53]);
+	assert.deepEqual(
+		messages.filter(args => args[1] === 'noteon').map(args => args[2]),
+		[54, 53]
+	);
 	seq._playDrumNotes(null);
 	assert.equal(attacks.length, 1);
 });
@@ -325,4 +328,109 @@ test('letter controls still play when a pattern button has focus', () => {
 	);
 	win.handlers.keyup(key('KeyA'));
 	assert.deepEqual(events, [['on', 53], ['off', 53]]);
+});
+
+test('touch release retries audio unlock in pointerup and touchend gestures', () => {
+	const { input, unlocked } = setup();
+	const pad = surface({
+		getBoundingClientRect: () => ({ left: 0, width: 700 }),
+		setPointerCapture() {}
+	});
+	input.pad(pad, notes.slice(0, 7));
+	const event = { pointerId: 1, clientX: 20, button: 0, preventDefault() {} };
+	pad.handlers.pointerdown(event);
+	assert.equal(unlocked(), 1);
+	pad.handlers.pointerup(event);
+	assert.equal(unlocked(), 2);
+	pad.handlers.touchend({ preventDefault() {}, changedTouches: [] });
+	assert.equal(unlocked(), 3);
+});
+
+const touchEvent = (...touches) => ({
+	preventDefault() {},
+	changedTouches: touches.map(([identifier, clientX, clientY = 10]) => ({
+		identifier,
+		clientX,
+		clientY
+	}))
+});
+
+test('native touch-only events play both banks, slide, and release each finger independently', () => {
+	const { input, events } = setup();
+	const bank = () =>
+		surface({ getBoundingClientRect: () => ({ left: 0, width: 700 }) });
+	const left = bank(),
+		right = bank();
+	input.pad(left, notes.slice(0, 7));
+	input.pad(right, notes.slice(7));
+	left.handlers.touchstart(touchEvent([11, 10]));
+	right.handlers.touchstart(touchEvent([22, 10]));
+	assert.deepEqual(events, [['on', 53], ['on', 65]]);
+	left.handlers.touchmove(touchEvent([11, 450]));
+	assert.deepEqual(events.slice(-2), [['on', 60], ['off', 53]]);
+	right.handlers.touchend(touchEvent([22, 10]));
+	assert.equal(input.held.size, 1);
+	left.handlers.touchcancel(touchEvent([11, 450]));
+	assert.equal(input.held.size, 0);
+	assert.deepEqual(events.slice(-2), [['off', 65], ['off', 60]]);
+});
+
+test('interleaved pointer/touch streams transfer ownership without duplicate notes or release gaps', () => {
+	const { input, events } = setup();
+	const pad = surface({
+		getBoundingClientRect: () => ({ left: 0, width: 700 }),
+		setPointerCapture() {}
+	});
+	input.pad(pad, notes.slice(0, 7));
+	const pointer = {
+		pointerType: 'touch',
+		pointerId: 99,
+		button: 0,
+		clientX: 10,
+		preventDefault() {}
+	};
+	pad.handlers.pointerdown(pointer);
+	pad.handlers.touchstart(touchEvent([11, 10]));
+	assert.deepEqual(events, [['on', 53]]);
+	assert.equal(input.held.size, 1);
+	pad.handlers.pointerup(pointer);
+	assert.equal(input.held.size, 1);
+	pad.handlers.touchend(touchEvent([11, 10]));
+	assert.deepEqual(events, [['on', 53], ['off', 53]]);
+	assert.equal(input.held.size, 0);
+});
+
+test('capture failure still starts the pattern and window-level release stops it', () => {
+	const { input, events } = setup();
+	const outside = surface();
+	const pad = surface({
+		getBoundingClientRect: () => ({ left: 0, width: 700 }),
+		ownerDocument: { defaultView: outside },
+		setPointerCapture() {
+			throw new Error('capture unavailable');
+		}
+	});
+	input.pad(pad, notes.slice(0, 7));
+	const event = { pointerId: 1, button: 0, clientX: 10, preventDefault() {} };
+	pad.handlers.pointerdown(event);
+	assert.deepEqual(events, [['on', 53]]);
+	outside.handlers.pointerup(event);
+	assert.deepEqual(events, [['on', 53], ['off', 53]]);
+	assert.equal(input.held.size, 0);
+	assert.deepEqual(Object.keys(outside.handlers), []);
+});
+
+test('blur clears native touch ownership so a late move cannot restart a pattern', () => {
+	const { input, events } = setup();
+	const pad = surface({
+		getBoundingClientRect: () => ({ left: 0, width: 700 })
+	});
+	input.pad(pad, notes.slice(0, 7));
+	pad.handlers.touchstart(touchEvent([11, 10], [22, 210]));
+	assert.equal(input.held.size, 2);
+	input.stopAll();
+	const count = events.length;
+	pad.handlers.touchmove(touchEvent([11, 410]));
+	assert.equal(events.length, count);
+	assert.equal(input.held.size, 0);
 });
