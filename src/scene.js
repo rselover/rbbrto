@@ -1,6 +1,8 @@
 const GREEN = '#00ef91';
 const BLUE = '#528aff';
 const RED = '#ff365b';
+// Pattern indexes can be negative for bass notes below MIDI 53.
+const wrap = (value, length) => ((value % length) + length) % length;
 const toes = [
 	{ x: -64, y: 171, rx: 17, ry: 25 },
 	{ x: -39, y: 201, rx: 21, ry: 29 },
@@ -186,7 +188,7 @@ export default class Scene {
 			});
 	}
 	strike(instrument, note, x, surfaceY) {
-		const index = note % 5;
+		const index = wrap(note, 5);
 		const toe = this.root.querySelector(
 			`#${instrument}-foot [data-toe="${index}"]`
 		);
@@ -214,19 +216,19 @@ export default class Scene {
 				[472, 592],
 				[300, 742]
 			];
-			const [x, y] = targets[note % 6];
+			const [x, y] = targets[wrap(note, 6)];
 			this.strike('drum', note, x, y);
 			this.root
-				.querySelector(`[data-drum="${note % 6}"]`)
+				.querySelector(`[data-drum="${wrap(note, 6)}"]`)
 				.classList.add('struck');
 		});
 	}
 	synth(notes) {
 		this.clear('synth');
 		notes.forEach(note => {
-			this.strike('synth', note, 1120 + ((note + 53) % 12) * 33, 618);
+			this.strike('synth', note, 1120 + wrap(note + 53, 12) * 33, 618);
 			this.root
-				.querySelector(`[data-key="${(note + 53) % 12}"]`)
+				.querySelector(`[data-key="${wrap(note + 53, 12)}"]`)
 				.classList.add('struck');
 		});
 	}
