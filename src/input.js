@@ -96,7 +96,8 @@ export default class PatternInput {
 	pad(element, notes) {
 		element.addEventListener('contextmenu', event => event.preventDefault());
 		const pointers = new Map();
-		const play = event => {
+		const touches = new Map();
+		const noteAt = event => {
 			const buttons = element.querySelectorAll
 				? [...element.querySelectorAll('[data-pattern]')]
 				: [];
@@ -134,42 +135,111 @@ export default class PatternInput {
 					)
 				);
 			}
-			this.start(pointers.get(event.pointerId), notes[index]);
+			return notes[index];
 		};
-		this.clearPointers.add(() => pointers.clear());
-		element.addEventListener('pointerdown', event => {
-			if (event.button !== 0) return;
-			event.preventDefault();
-			this.unlock();
-			if (pointers.has(event.pointerId))
-				this.stop(pointers.get(event.pointerId));
-			pointers.set(event.pointerId, {});
-			try {
-				element.setPointerCapture(event.pointerId);
-			} catch (error) {
-				this.stop(pointers.get(event.pointerId));
-				pointers.delete(event.pointerId);
-				return;
-			}
-			play(event);
-		});
-		element.addEventListener('pointermove', event => {
+		const play = event =>
+			this.start(pointers.get(event.pointerId), noteAt(event));
+		const outside = element.ownerDocument?.defaultView;
+		const move = event => {
 			if (pointers.has(event.pointerId)) play(event);
-		});
+		};
 		const stop = event => {
 			const source = pointers.get(event.pointerId);
 			if (source) this.stop(source);
 			pointers.delete(event.pointerId);
+			if (!pointers.size) unwatch();
 		};
-		element.addEventListener('pointerup', event => {
+		const up = event => {
 			if (pointers.has(event.pointerId)) this.unlock();
 			stop(event);
+		};
+		let watching = false;
+		const unwatch = () => {
+			if (!watching) return;
+			outside.removeEventListener('pointermove', move);
+			outside.removeEventListener('pointerup', up);
+			outside.removeEventListener('pointercancel', stop);
+			watching = false;
+		};
+		const watch = () => {
+			if (!outside || watching) return;
+			outside.addEventListener('pointermove', move);
+			outside.addEventListener('pointerup', up);
+			outside.addEventListener('pointercancel', stop);
+			watching = true;
+		};
+		this.clearPointers.add(() => {
+			pointers.clear();
+			touches.clear();
+			unwatch();
 		});
-		// iOS also recognizes touchend; this is harmless after pointerup succeeds.
-		element.addEventListener('touchend', () => this.unlock(), {
-			passive: true
+		element.addEventListener('pointerdown', event => {
+			if (event.pointerType !== 'touch' && event.button !== 0) return;
+			if (event.pointerType !== 'touch') event.preventDefault();
+			this.unlock();
+			if (pointers.has(event.pointerId))
+				this.stop(pointers.get(event.pointerId));
+			pointers.set(event.pointerId, { touch: event.pointerType === 'touch' });
+			// Capture is an optimization, not a prerequisite for starting a note.
+			try {
+				if (!element.setPointerCapture) throw new Error('No pointer capture');
+				element.setPointerCapture(event.pointerId);
+			} catch (error) {
+				watch();
+			}
+			play(event);
 		});
+		element.addEventListener('pointermove', move);
+		element.addEventListener('pointerup', up);
 		element.addEventListener('pointercancel', stop);
 		element.addEventListener('lostpointercapture', stop);
+
+		// Native Touch Events preserve touch.identifier across multiple fingers
+		// and continue targeting the starting bank without pointer capture.
+		const touchMove = event => {
+			event.preventDefault();
+			for (const touch of Array.from(event.changedTouches)) {
+				const source = touches.get(touch.identifier);
+				if (source) this.start(source, noteAt(touch));
+			}
+		};
+		element.addEventListener(
+			'touchstart',
+			event => {
+				event.preventDefault();
+				this.unlock();
+				for (const touch of Array.from(event.changedTouches)) {
+					if (!touches.has(touch.identifier)) touches.set(touch.identifier, {});
+					this.start(touches.get(touch.identifier), noteAt(touch));
+				}
+				// WebKit may emit both streams. Transfer ownership without a second
+				// note-on or a release gap, then ignore the redundant pointer stream.
+				for (const [id, source] of pointers)
+					if (source.touch) {
+						this.stop(source);
+						pointers.delete(id);
+					}
+				if (!pointers.size) unwatch();
+			},
+			{ passive: false }
+		);
+		element.addEventListener('touchmove', touchMove, { passive: false });
+		const touchStop = event => {
+			event.preventDefault();
+			for (const touch of Array.from(event.changedTouches)) {
+				const source = touches.get(touch.identifier);
+				if (source) this.stop(source);
+				touches.delete(touch.identifier);
+			}
+		};
+		element.addEventListener(
+			'touchend',
+			event => {
+				this.unlock();
+				touchStop(event);
+			},
+			{ passive: false }
+		);
+		element.addEventListener('touchcancel', touchStop, { passive: false });
 	}
 }
