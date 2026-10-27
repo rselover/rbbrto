@@ -1,47 +1,28 @@
 import { drumPatterns, synthPatterns } from './patterns.js';
-import drum, {
-	DRUM_HAND_LEFT,
-	DRUM_HAND_RIGHT,
-	COWBELL,
-	FACE
-} from './drum.js';
-import {
-	SYNTH_LEFT,
-	SYNTH_BITS_LEFT,
-	KEY_GUIDE,
-	SYNTH_IDLE_HAND_LEFT,
-	SYNTH_IDLE_HAND_RIGHT,
-	SYNTH_PLAY_HAND_LEFT,
-	SYNTH_PLAY_HAND_RIGHT
-} from './synth.js';
 import MIDI, { whiteKeys, idxToMidi } from './midi.js';
 import PatternInput from './input.js';
+import Scene, { sceneMarkup } from './scene.js';
 import css from './rbbrto.css.js';
-import * as c from './constants.js';
 import { asArrayLike, stringBool } from './utils.js';
 
 // Private symbols to not expose every variable to the outside
 const [
 	$playback,
-	$hold,
 	$timer,
 	$displayInstrument,
 	$bpm,
 	$stepDuration,
 	$midi,
 	$controlChannel,
-	$resizeTimeout,
 	$noteScheduled
 ] = [
 	Symbol('playback'),
-	Symbol('hold'),
 	Symbol('timer'),
 	Symbol('displayInstrument'),
 	Symbol('bpm'),
 	Symbol('stepDuration'),
 	Symbol('midi'),
 	Symbol('controlChannel'),
-	Symbol('resizeTimeout'),
 	Symbol('noteScheduled')
 ];
 
@@ -64,15 +45,13 @@ const [
 	$synthPlayhead,
 	$synthPattern,
 	$activeSynthNotes,
-	$synthChannel,
-	$synthKeyX
+	$synthChannel
 ] = [
 	Symbol('synthPlayback'),
 	Symbol('synthPlayhead'),
 	Symbol('synthPattern'),
 	Symbol('activeSynthNotes'),
-	Symbol('synthChannel'),
-	Symbol('synthKeyX')
+	Symbol('synthChannel')
 ];
 
 class Rbbrto extends HTMLElement {
@@ -122,15 +101,14 @@ class Rbbrto extends HTMLElement {
 		// Show the SVG
 		this.shadow = this.attachShadow({ mode: 'open' });
 
-		const style = document.createElement('style');
-		style.appendChild(document.createTextNode(css));
-		this.shadow.appendChild(style);
-
-		this.shadow.appendChild(
-			document.getElementById('rbbrto-svg').content.cloneNode(true)
-		);
-
-		this.shadow.appendChild(document.createElement('rbbrto-settings'));
+		this.shadow.innerHTML = `<style>${css}</style>${sceneMarkup}`;
+		this._scene = new Scene(this.shadow);
+		this.shadow.querySelector('#tempo').addEventListener('change', event => {
+			const value = Number(event.target.value);
+			if (Number.isFinite(value) && value >= 30 && value <= 240)
+				this.bpm = value;
+			event.target.value = this.bpm;
+		});
 	}
 
 	// Debug
@@ -152,9 +130,6 @@ class Rbbrto extends HTMLElement {
 
 	// We're in the DOM
 	connectedCallback() {
-		// Reset the UI
-		this._resetUI();
-
 		this._resetDrums();
 		this._idleDrums();
 
@@ -163,29 +138,23 @@ class Rbbrto extends HTMLElement {
 
 		this._updatePatternUI();
 
-		// Resize the settings bar and the SVG together
-		setTimeout(() => this._sendSettingSizing());
-		window.addEventListener('resize', () => {
-			clearTimeout(this[$resizeTimeout]);
-			this[$resizeTimeout] = setTimeout(() => {
-				this._sendSettingSizing();
-			}, 100);
-		});
-
 		// Adjust the MIDI channels if they are sent from the settings
 		const settings = this.shadow.querySelector('rbbrto-settings');
-		settings.addEventListener(
-			'drum-channel',
-			evt => (this.drumChannel = evt.detail)
-		);
-		settings.addEventListener(
-			'control-channel',
-			evt => (this.controlChannel = evt.detail)
-		);
-		settings.addEventListener(
-			'synth-channel',
-			evt => (this.synthChannel = evt.detail)
-		);
+		if (!this._settingsBound) {
+			settings.addEventListener(
+				'drum-channel',
+				evt => (this.drumChannel = evt.detail)
+			);
+			settings.addEventListener(
+				'control-channel',
+				evt => (this.controlChannel = evt.detail)
+			);
+			settings.addEventListener(
+				'synth-channel',
+				evt => (this.synthChannel = evt.detail)
+			);
+			this._settingsBound = true;
+		}
 
 		if (!this._padsInitialized) {
 			this._initPads();
@@ -248,6 +217,7 @@ class Rbbrto extends HTMLElement {
 				this[$timer] = null;
 				this[$noteScheduled] = false;
 			}
+			this._updatePatternUI();
 		}
 	}
 	get playback() {
@@ -296,6 +266,7 @@ class Rbbrto extends HTMLElement {
 			this[$bpm] = parseFloat(bpm);
 			this[$stepDuration] = 60.0 / this[$bpm] / 4.0;
 			this.setAttribute('bpm', parseFloat(bpm));
+			this.shadow.querySelector('#tempo').value = this[$bpm];
 			const svg = this.shadow.querySelector('svg');
 			if (svg) {
 				svg.style.setProperty('--beat-s', this[$stepDuration] + 's');
@@ -489,62 +460,7 @@ class Rbbrto extends HTMLElement {
 			this[$activeSynthNotes].push(idxToMidi(notesArr[1]));
 		}
 
-		if (notesArr.length === 1) {
-			// Play single notes with the appropriate hand
-			const relNote = idxToMidi(notesArr[0]) % 12;
-			if (relNote < 6) {
-				this._hide(SYNTH_IDLE_HAND_LEFT);
-				this._hitSynthKey(SYNTH_PLAY_HAND_LEFT, relNote);
-			} else {
-				this._hide(SYNTH_IDLE_HAND_RIGHT);
-				this._hitSynthKey(SYNTH_PLAY_HAND_RIGHT, relNote);
-			}
-		} else {
-			// Play multiple notes with two hands
-			this._hide([SYNTH_IDLE_HAND_LEFT, SYNTH_IDLE_HAND_RIGHT]);
-			const relNotesArr = [
-				idxToMidi(notesArr[0]) % 12,
-				idxToMidi(notesArr[1]) % 12
-			];
-			this._hitSynthKey(SYNTH_PLAY_HAND_LEFT, Math.min(...relNotesArr));
-			this._hitSynthKey(SYNTH_PLAY_HAND_RIGHT, Math.max(...relNotesArr));
-		}
-	}
-
-	/**
-	 * Animate hitting a key with a hand
-	 * @param  {string} hand DOM selector
-	 * @param  {int} relNote Relative note position
-	 */
-	_hitSynthKey(hand, relNote) {
-		// Memoize the key positions to improve performance
-		if (!this[$synthKeyX]) {
-			this[$synthKeyX] = [];
-		}
-		if (!this[$synthKeyX][0]) {
-			this[$synthKeyX][0] = this.shadow
-				.querySelector('#bk0')
-				.getAttribute('x1');
-		}
-		if (!this[$synthKeyX][relNote]) {
-			this[$synthKeyX][relNote] = this.shadow
-				.querySelector(`#bk${relNote}`)
-				.getAttribute('x1');
-		}
-
-		this._show(hand);
-
-		// Calculate the x-offset of the hand and set it in a CSS custom property
-		// (it will be used in the CSS keyframe animation)
-		const xDiff = this[$synthKeyX][relNote] - this[$synthKeyX][0];
-		this.shadow
-			.querySelector(hand)
-			.style.setProperty('--translate-x', `${xDiff}px`);
-
-		// Animate the hand and the key using CSS
-		this._toggle([`#bk${relNote}`, hand], c.CLASS_HIT, true);
-
-		this._toggle('#synthb', c.CLASS_FADED, false);
+		this._scene.synth(notesArr);
 	}
 
 	/**
@@ -609,196 +525,37 @@ class Rbbrto extends HTMLElement {
 			this[$activeDrumNotes].push(idxToMidi(notesArr[1]));
 		}
 
-		// Show the appropriate state in the UI
-		const note0 = drum[notesArr[0] % drum.length];
-		const note1 = drum[notesArr[1] % drum.length] || note0;
-
-		this._show(FACE(note0.face));
-
-		const layer0 = note0.layer;
-		this._show(layer0);
-		this._toggle(layer0, c.CLASS_HIT, true);
-
-		const hideLeftHand = !(
-			note0.hands.includes(c.SIDE_LEFT) && note1.hands.includes(c.SIDE_LEFT)
-		);
-		this._toggle(DRUM_HAND_LEFT, c.CLASS_HIDDEN, hideLeftHand);
-
-		const hideRightHand = !(
-			note0.hands.includes(c.SIDE_RIGHT) && note1.hands.includes(c.SIDE_RIGHT)
-		);
-		this._toggle(DRUM_HAND_RIGHT, c.CLASS_HIDDEN, hideRightHand);
-
-		const hideCowbell = note0.cowbell === false || note1.cowbell === false;
-		this._toggle(COWBELL, c.CLASS_HIDDEN, hideCowbell);
-
-		// When two notes are played, only show both
-		// if the gorilla can pull it off
-		if (
-			note0.hands === 'lr' ||
-			note1.hands === 'lr' ||
-			(note0.cowbell === false || note1.cowbell === false)
-		) {
-			const layer1 = note1.layer;
-			this._show(layer1);
-			this._toggle(layer1, c.CLASS_HIT, true);
-		}
+		this._scene.drum(notesArr);
 	}
 
-	/**
-	 * Reset shared parts of the UI
-	 */
-	_resetUI() {
-		this._hide([
-			'#replace',
-			'#fillin_1_',
-			'#chain',
-			'#octhigh',
-			'#rubber',
-			'#octdown',
-			'#octup'
-		]);
-	}
-	/**
-	 * Reset the piano keys UI
-	 */
-	_resetKeysUI() {
-		for (let key = 0; key < 7; key++) {
-			this._toggle(`#p${key}`, c.CLASS_ACTIVE, false);
-		}
-	}
-
-	/**
-	 * Update the pattern view UI, show currently displayed pattern
-	 */
 	_updatePatternUI() {
-		let pattern;
-		let patternIdx;
-		let step = 0;
-		if (this[$displayInstrument] === 'drum') {
-			patternIdx = this[$drumPattern];
-			pattern = drumPatterns[patternIdx];
-			step = this[$drumPlayhead] || 0;
-		} else {
-			patternIdx = this[$synthPattern];
-			pattern = synthPatterns[patternIdx];
-			step = this[$synthPlayhead] || 0;
-		}
-		if (this.playback) {
-			step++;
-		}
-
-		step = parseInt(step, 10) % pattern.length;
-
-		for (let step = 0; step < 32; step++) {
-			// hide all outlines
-			this._hide(`#g${step}${step >= 22 && step <= 29 ? '_1_' : ''}`);
-
-			// hide steps that aren't active
-			if (step >= pattern.length) {
-				this._hide(`#x${step}`);
-				this._hide(`#g${step}bg`);
-				continue;
-			} else {
-				this._show(`#g${step}bg`);
-			}
-
-			// hide empty active steps
-			if (pattern[step] === null) {
-				this._hide(`#x${step}`);
-			} else {
-				this._show(`#x${step}`);
-			}
-		}
-
-		this._show(`#g${step}${step >= 22 && step <= 29 ? '_1_' : ''}`);
-
-		this._resetKeysUI();
-		this._toggle(`#p${patternIdx % 7}`, c.CLASS_ACTIVE, true);
-
-		this._hide(['#octhigh', '#octlow']);
-		if (patternIdx >= 7) {
-			this._show('#octhigh');
-		} else {
-			this._show('#octlow');
-		}
-	}
-
-	/**
-	 * Hide unused parts of the drum UI
-	 * @return {[type]} [description]
-	 */
-	_resetDrums() {
-		this._show('#drum');
-
-		this._show('#druma');
-		this._hide('#drumb');
-
-		this._hide([DRUM_HAND_LEFT, DRUM_HAND_RIGHT, FACE(0), FACE(1)]);
-
-		this._toggle(COWBELL, c.CLASS_FADED, !this.playback);
-
-		for (let i = 0; i <= 11; i++) {
-			if (i > 1 && i <= 5) {
-				this._hide(`#face0${i}`);
-			}
-			if (i === 10) {
-				// Hide cowbell
-				this._hide('#ad10_1_');
-				continue;
-			}
-
-			this._hide(`#ad${i}`);
-		}
-	}
-
-	/**
-	 * Set the drum gorilla to stay idle
-	 */
-	_idleDrums() {
-		this._show([DRUM_HAND_LEFT, DRUM_HAND_RIGHT, FACE(0), COWBELL]);
-		this._toggle(COWBELL, c.CLASS_FADED, !this[$drumPlayback]);
-	}
-
-	_resetSynths() {
-		this._show('#synth');
-
-		this._hide(
-			[
-				'#syntha',
-				'#hald',
-				'#hard',
-				'#haru',
-				'#halu',
-				KEY_GUIDE,
-				SYNTH_PLAY_HAND_LEFT,
-				SYNTH_PLAY_HAND_RIGHT
-			].concat(SYNTH_LEFT)
-		);
-		this.shadow.querySelectorAll(SYNTH_BITS_LEFT).forEach(bit => {
-			bit.classList.add(c.CLASS_HIDDEN);
+		const isDrum = this[$displayInstrument] === 'drum';
+		const patternIndex = isDrum ? this[$drumPattern] : this[$synthPattern];
+		this._scene.update({
+			pattern: isDrum
+				? drumPatterns[patternIndex]
+				: synthPatterns[patternIndex],
+			step: (isDrum ? this[$drumPlayhead] : this[$synthPlayhead]) || 0,
+			patternIndex,
+			playing: this.playback,
+			drumPlaying: this[$drumPlayback],
+			synthPlaying: this[$synthPlayback],
+			drumPattern: this[$drumPattern],
+			synthPattern: this[$synthPattern]
 		});
-
-		for (let k = 0; k < 12; k++) {
-			this._hide(`#ak${k}`);
-		}
-
-		this._show('#synthb');
-		this._toggle('#synthb', c.CLASS_FADED, true);
-		this._show([SYNTH_IDLE_HAND_LEFT, SYNTH_IDLE_HAND_RIGHT]);
-
-		for (let k = 0; k < 12; k++) {
-			this._toggle(`#bk${k}`, c.CLASS_HIT, false);
-		}
 	}
 
-	/**
-	 * Set the synth dude to idle
-	 */
+	_resetDrums() {
+		this._scene.clear('drum');
+	}
+	_idleDrums() {
+		this._scene.clear('drum');
+	}
+	_resetSynths() {
+		this._scene.clear('synth');
+	}
 	_idleSynths() {
-		this._hide([SYNTH_PLAY_HAND_LEFT, SYNTH_PLAY_HAND_RIGHT]);
-		this._show([SYNTH_IDLE_HAND_LEFT, SYNTH_IDLE_HAND_RIGHT]);
-		this._toggle('#synthb', c.CLASS_FADED, !this[$synthPlayback]);
+		this._scene.clear('synth');
 	}
 
 	/**
@@ -851,6 +608,7 @@ class Rbbrto extends HTMLElement {
 
 			// Whatever input we get, playback should be started
 			this.playback = true;
+			this._updatePatternUI();
 		};
 		/**
 		 * Handle incoming MIDI note releases
@@ -923,28 +681,31 @@ class Rbbrto extends HTMLElement {
 					this.synthPattern = synthPatterns[synthPatterns.length - 1];
 				}
 			}
+			this._updatePatternUI();
 		};
 	}
 
 	_initPads() {
-		const help = document.createElement('div');
-		help.classList.add('input-help');
-		help.textContent = 'Hold to play · Drums: A S D F G H J · Synth: Q W E R T Y U';
-		this.shadow.appendChild(help);
-		const patternNotes = Object.keys(whiteKeys).map(Number);
-		const bottomNotes = patternNotes.slice(0, 7);
-		const topNotes = patternNotes.slice(7);
-
-		const top = document.createElement('div');
-		top.classList.add('pad', 'pad-top');
-		const bottom = document.createElement('div');
-		bottom.classList.add('pad', 'pad-bottom');
-
-		this.shadow.appendChild(top);
-		this.shadow.appendChild(bottom);
-
-		this._setupPad(top, topNotes);
-		this._setupPad(bottom, bottomNotes);
+		const notes = Object.keys(whiteKeys).map(Number);
+		this._setupPad(this.shadow.querySelector('.drum-bank'), notes.slice(0, 7));
+		this._setupPad(this.shadow.querySelector('.synth-bank'), notes.slice(7));
+		this.shadow.querySelectorAll('[data-pattern]').forEach(button => {
+			const source = {};
+			button.addEventListener('keydown', event => {
+				if (!['Space', 'Enter'].includes(event.code) || event.repeat) return;
+				event.preventDefault();
+				this._unlockAudio();
+				this._input.start(source, notes[Number(button.dataset.pattern)]);
+			});
+			const release = () => this._input.stop(source);
+			button.addEventListener('keyup', event => {
+				if (['Space', 'Enter'].includes(event.code)) {
+					event.preventDefault();
+					release();
+				}
+			});
+			button.addEventListener('blur', release);
+		});
 	}
 
 	_setupPad(el, notes) {
@@ -954,56 +715,15 @@ class Rbbrto extends HTMLElement {
 	_unlockAudio() {
 		// AudioContext must resume in the input gesture, before the beat callback.
 		if (this._Tone) {
-			this._Tone.start().catch(error => console.warn('Audio could not start', error));
+			this._Tone
+				.start()
+				.catch(error => console.warn('Audio could not start', error));
 		}
 	}
 
 	disconnectedCallback() {
 		if (this._disconnectKeyboard) this._disconnectKeyboard();
 		this._disconnectKeyboard = null;
-	}
-
-	/**
-	 * Hide element
-	 * @param  {string|Array} selector
-	 */
-	_hide(selector) {
-		this._toggle(selector, c.CLASS_HIDDEN, true);
-		this._toggle(selector, c.CLASS_HIT, false);
-	}
-	/**
-	 * Show element
-	 * @param  {string|Array} selector
-	 */
-	_show(selector) {
-		this._toggle(selector, c.CLASS_HIDDEN, false);
-	}
-	/**
-	 * classList.toggle shorthand
-	 * @param  {string|Array} selector
-	 */
-	_toggle(selector, className, force) {
-		asArrayLike(selector).forEach(s => {
-			const el = this.shadow.querySelector(s);
-			if (el) {
-				el.classList.toggle(className, force);
-			}
-		});
-	}
-
-	_sendSettingSizing() {
-		const hold = this.shadow.querySelector('#hold');
-		const drum = this.shadow.querySelector('#drum');
-		const settings = this.shadow.querySelector('rbbrto-settings');
-		const svg = this.shadow.querySelector('svg');
-		if (hold && drum && settings && svg) {
-			const holdRect = hold.getBoundingClientRect();
-			const drumRect = drum.getBoundingClientRect();
-			const settingsStyle = settings.style;
-			settingsStyle.setProperty('--settings-height', `${holdRect.height}px`);
-			settingsStyle.setProperty('--settings-width', `${drumRect.width}px`);
-			svg.style.setProperty('--settings-height', `${holdRect.height}px`);
-		}
 	}
 
 	_printWelcomeText() {
@@ -1082,4 +802,3 @@ class Rbbrto extends HTMLElement {
 }
 
 customElements.define('rbbrto-sequencer', Rbbrto);
-

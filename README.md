@@ -1,27 +1,32 @@
-# Rbbrto
+# rbbrto &
 
-A browser recreation of the OP-1 Rbbrto sequencer, with MIDI output and a Tone.js audio preview.
+A little sole. A lot of rhythm. A neon foot orchestra inspired by the supplied Rbbrto reference: red feet, blue inner contours, green instruments and a flower-crowned hula dancer.
 
-Serve this directory with a static HTTP server (for example, `python3 -m http.server 8000`) and open `http://localhost:8000`. There is no build step. MIDI and service workers require HTTPS or localhost; the audio preview loads Tone.js from jsDelivr.
+The artwork is native SVG. The feet face upward at rest. Drum and synth steps detach individual toes, send them down to strike the instruments, then return them to their exact positions on the foot. Instrument highlights follow the notes. The center foot sways and its grass skirt swings while a pattern plays. It rests when playback stops. Reduced-motion preferences disable the repeating movement.
 
-Hold **A S D F G H J** for drum patterns and **Q W E R T Y U** for synth patterns. Hold both rows to play drums and synth together. Releasing the newest key returns to the previous held pattern. Keyboard repeat is ignored, and switching tabs or leaving the window releases held inputs.
+## Play
 
-The lower pad selects seven drum patterns and the upper pad selects seven synth patterns. Drag horizontally to change patterns and release to stop. The settings bar cycles each MIDI channel from 1 through 16. MIDI output is skipped until access is available, so pad interaction can continue when MIDI is unavailable or permission is denied.
+- Hold **A S D F G H J** for seven drum patterns.
+- Hold **Q W E R T Y U** for seven synth patterns.
+- Hold keys from both rows for a duet. Release the newest key to return to the previous held pattern.
+- On a phone or tablet, hold and slide across either labeled button bank. Each pointer is tracked independently.
+- Tab to a pattern button and hold Space or Enter to play it.
+- Change tempo with the BPM field (30–240). Footer buttons cycle MIDI channels 1–16.
 
-Run `npm test` with Node 22 (see `.nvmrc`). Tests use Node's built-in test runner and require no package installation. They cover MIDI availability, settings events, pad mapping and cancellation, and service-worker fetching/cache failures. They use browser API doubles; actual MIDI hardware, audio playback, and browser layout still need manual verification.
+Keyboard repeat, modifier shortcuts and editing fields do not trigger patterns. Leaving the window or switching tabs releases local inputs. Slides press the new pattern before releasing the previous one, keeping the beat running.
 
-## Cleanup notes
+## Run
 
-- Touch pads previously used eight-note ranges that did not match the fourteen supported control notes. Some regions selected the wrong instrument or no pattern. Pads now derive their seven-note ranges from `whiteKeys`, stop above the settings bar, and release on pointer cancellation or lost capture.
-- MIDI sends previously assumed access had already resolved. Early interaction or denied/unsupported MIDI could throw. Sends now wait for available access by skipping output until it exists, without queuing stale notes.
-- Settings used the nonstandard `event.path`, assumed every click found a channel, and installed another listener on reconnect. They now use `composedPath()`, ignore background clicks, and assign one click handler.
-- The service worker previously made separate network requests for display and caching. It now fetches once, caches a successful response clone, skips non-GET requests, and keeps network responses usable when cache writes fail. Registration checks API support and reports failures.
-- The lockfile still used the original `@sampi/rbbrto` package name; it now matches `package.json`.
+There is no build step. Serve this directory with `python3 -m http.server 8000`, then open `http://localhost:8000`. MIDI and service workers require HTTPS or localhost. Audio preview loads Tone.js from jsDelivr. Local controls work when MIDI is unsupported or denied.
 
-The unusual feet/toes terminology in repository history came from PRs #2 and #4, reverted by #3 and #5. In particular, #4 renamed animation symbols and comments while retaining the existing SVG selectors and artwork. The current main branch restores the gorilla/professor implementation.
+Run `npm test` with Node 22 or newer. Tests require no package installation and cover input ownership, key repeat, simultaneous drum/synth control, held-pattern fallback, audio steps, scene state and offline fetching. They use browser API doubles; actual browser interaction and MIDI hardware need separate checks.
 
-The audio preview remains approximate: drum notes all trigger the same `C2` membrane sound. Offline use still depends on assets having been cached previously, including the external Tone.js module. These are existing limitations, not a full instrument or offline redesign.
+## Structure
 
-## Touch and keyboard follow-up
+- `src/rbbrto.js`: pattern scheduling, MIDI and audio.
+- `src/scene.js`: SVG artwork, note-driven toe animation and sequencer display.
+- `src/input.js`: touch and keyboard ownership.
+- `src/rbbrto.css.js`: responsive layout and animations.
+- `src/settings.js`: MIDI channel controls.
 
-The original touch-pad commit (16046ee) removed the existing keyboard event listeners and `_onKeyDown`/`_onKeyUp` methods. The new input controller restores all fourteen patterns, supports independent touch pointers, and shares held notes between touch and keyboard. Slides press the new pattern before releasing the previous one so playback does not restart between regions. Audio resumes directly inside the input gesture. The local drum preview triggers its single membrane voice once per step, avoiding simultaneous attacks on a monophonic synth for two-note drum steps. Stopping cancels the pending animation frame, preventing duplicate beat loops after a quick restart.
+The artwork replaces the original gorilla/professor template and its hand-based animation selectors. Patterns and MIDI note output remain the same. The local drum preview remains approximate: every drum note uses one C2 membrane voice. Offline use depends on previously cached assets, including the external Tone.js module.
