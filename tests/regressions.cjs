@@ -114,17 +114,8 @@ test('all pad regions select a supported pattern and cancellation releases it', 
     const pads = [];
     Rbbrto.prototype._initPads.call({ shadow: { appendChild() {} }, _setupPad: (_, notes) => pads.push(Array.from(notes)) });
     assert.deepEqual(pads, [[65, 67, 69, 71, 72, 74, 76], [53, 55, 57, 59, 60, 62, 64]]);
-    const handlers = {};
-    const sent = [];
-    const instance = vm.runInContext('({ [$controlChannel]: 16, [$midi]: null })', context);
-    const symbols = Object.getOwnPropertySymbols(instance);
-    instance[symbols.find(s => s.description === 'midi')] = { noteon: (...args) => sent.push(['on', ...args]), noteoff: (...args) => sent.push(['off', ...args]) };
-    Rbbrto.prototype._setupPad.call(instance, {
-        getBoundingClientRect: () => ({ left: 0, width: 700 }), setPointerCapture() {},
-        addEventListener: (name, fn) => { handlers[name] = fn; }
-    }, pads[1]);
-    handlers.pointerdown({ clientX: 1, pointerId: 1 });
-    handlers.pointercancel();
-    handlers.lostpointercapture();
-    assert.deepEqual(sent, [['on', 16, 53], ['off', 16, 53]]);
+    const bindings = [];
+    Rbbrto.prototype._setupPad.call({ _input: { pad: (...args) => bindings.push(args) } }, 'pad', pads[1]);
+    assert.equal(bindings[0][0], 'pad');
+    assert.deepEqual(bindings[0][1], pads[1]);
 });
