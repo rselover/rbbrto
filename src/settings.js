@@ -8,7 +8,7 @@ class Settings extends HTMLElement {
 		super();
 
 		this.drum = 1;
-		this.control = 4;
+		this.control = 14;
 		this.synth = 8;
 
 		this.stepDuration = 0;
@@ -26,13 +26,19 @@ class Settings extends HTMLElement {
 		this.render();
 		this.onclick = evt => {
 			const channels = ['drum', 'control', 'synth'];
-			const element = evt.composedPath().find(
-				e => e.classList && channels.some(channel => e.classList.contains(channel))
-			);
+			const element = evt
+				.composedPath()
+				.find(
+					e =>
+						e.classList &&
+						channels.some(channel => e.classList.contains(channel))
+				);
 			if (!element) {
 				return;
 			}
-			const target = channels.find(channel => element.classList.contains(channel));
+			const target = channels.find(channel =>
+				element.classList.contains(channel)
+			);
 			this[target] = (this[target] % 16) + 1;
 			this.dispatchEvent(
 				new CustomEvent(`${target}-channel`, { detail: this[target] })
@@ -48,33 +54,19 @@ class Settings extends HTMLElement {
 	}
 
 	render() {
-		this.shadow.getElementById('root').innerHTML = `
-			<div class="drum">
-				<span class="i">y</span>
-				${this._numToSpans(this.drum)}
-			</div>
-			<div class="control">
-				<span class="i">z</span>
-				${this._numToSpans(this.control)}
-			</div>
-			<div class="synth">
-				<span class="i">x</span>
-				${this._numToSpans(this.synth)}
-			</div>
-		`;
-	}
-	_numToSpans(num) {
-		if (num < 10) {
-			num = `0${num}`;
-		} else {
-			num = num.toString();
-		}
-		return num
-			.split('')
-			.map(n => `<span class="n${n}">${n}</span>`)
+		this.shadow.getElementById('root').innerHTML = ['drum', 'control', 'synth']
+			.map(
+				channel => `
+			<button type="button" class="${channel}" aria-label="${channel} MIDI channel ${
+					this[channel]
+				}, click to advance">
+				<span class="label">${channel.toUpperCase()}</span>${String(
+					this[channel]
+				).padStart(2, '0')}
+			</button>`
+			)
 			.join('');
 	}
 }
 
 customElements.define('rbbrto-settings', Settings);
-
