@@ -24,27 +24,21 @@ class Settings extends HTMLElement {
 
 	connectedCallback() {
 		this.render();
-		this.addEventListener('click', evt => {
-			const target = evt.path
-				.find(
-					e =>
-						e.classList &&
-						(e.classList.contains('drum') ||
-							e.classList.contains('control') ||
-							e.classList.contains('synth'))
-				)
-				.classList.toString();
-			this[target]++;
-			if (this[target] === 17) {
-				this[target] = 1;
+		this.onclick = evt => {
+			const channels = ['drum', 'control', 'synth'];
+			const element = evt.composedPath().find(
+				e => e.classList && channels.some(channel => e.classList.contains(channel))
+			);
+			if (!element) {
+				return;
 			}
+			const target = channels.find(channel => element.classList.contains(channel));
+			this[target] = (this[target] % 16) + 1;
 			this.dispatchEvent(
-				new CustomEvent(`${target}-channel`, {
-					detail: this[target]
-				})
+				new CustomEvent(`${target}-channel`, { detail: this[target] })
 			);
 			this.render();
-		});
+		};
 	}
 
 	attributeChangedCallback(name, oldVal, newVal) {
@@ -83,3 +77,4 @@ class Settings extends HTMLElement {
 }
 
 customElements.define('rbbrto-settings', Settings);
+

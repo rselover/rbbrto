@@ -42,9 +42,7 @@ export default class MIDI {
                 .requestMIDIAccess()
                 .then(this.success.bind(this), this.failure.bind(this));
         } else {
-            alert(
-                "Web MIDI API not supported, I haven't coded computer keyboard controls yet..."
-            );
+            console.warn('Web MIDI API is not supported; use the on-screen pads.');
         }
     }
     success(midi) {
@@ -93,6 +91,10 @@ export default class MIDI {
         }
     }
     send(channel, command, note = 0, velocity = 0) {
+        // Local playback remains available while permission is pending or denied.
+        if (!this[$midi]) {
+            return;
+        }
         switch (command) {
             case 'noteoff':
                 command = 0x80;

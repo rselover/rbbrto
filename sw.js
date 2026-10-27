@@ -1,43 +1,42 @@
-//This is the "Offline copy of pages" service worker
+// Fetch each request once and retain successful GET responses for offline use.
+const CACHE_NAME = 'pwabuilder-offline';
 
-//Install stage sets up the index page (home page) in the cache and opens a new cache
-self.addEventListener('install', function(event) {
-	var indexPage = new Request('index.html');
+self.addEventListener('install', event => {
 	event.waitUntil(
-		fetch(indexPage).then(function(response) {
-			return caches.open('pwabuilder-offline').then(function(cache) {
-				return cache.put(indexPage, response);
-			});
-		})
+		caches.open(CACHE_NAME).then(cache => cache.add('index.html'))
 	);
 });
 
-//If any fetch fails, it will look for the request in the cache and serve it from there first
-self.addEventListener('fetch', function(event) {
-	var updateCache = function(request) {
-		return caches.open('pwabuilder-offline').then(function(cache) {
-			return fetch(request).then(function(response) {
-				return cache.put(request, response);
-			});
-		});
-	};
+self.addEventListener('fetch', event => {
+	if (event.request.method !== 'GET') {
+		return;
+	}
 
-	event.waitUntil(updateCache(event.request));
-
+	// Extend the worker lifetime before the asynchronous fetch finishes.
+	let finishCache;
+	event.waitUntil(new Promise(resolve => { finishCache = resolve; }));
 	event.respondWith(
-		fetch(event.request).catch(function(error) {
-			//Check to see if you have it in the cache
-			//Return response
-			//If not in the cache, then return error page
-			return caches.open('pwabuilder-offline').then(function(cache) {
-				return cache.match(event.request).then(function(matching) {
-					var report =
-						!matching || matching.status == 404
-							? Promise.reject('no-match')
-							: matching;
-					return report;
-				});
-			});
-		})
+		fetch(event.request)
+			.then(response => {
+				if (response.ok) {
+					const copy = response.clone();
+					caches.open(CACHE_NAME)
+						.then(cache => cache.put(event.request, copy))
+						.catch(error => console.warn('Offline cache update failed', error))
+						.finally(finishCache);
+				} else {
+					finishCache();
+				}
+				return response;
+			})
+			.catch(async error => {
+				finishCache();
+				const cache = await caches.open(CACHE_NAME);
+				const cached = await cache.match(event.request);
+				if (cached) {
+					return cached;
+				}
+				throw error;
+			})
 	);
 });

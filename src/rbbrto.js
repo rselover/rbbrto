@@ -903,8 +903,9 @@ class Rbbrto extends HTMLElement {
 	}
 
 	_initPads() {
-		const topNotes = [72, 74, 76, 77, 79, 81, 83, 84];
-		const bottomNotes = [60, 62, 64, 65, 67, 69, 71, 72];
+		const patternNotes = Object.keys(whiteKeys).map(Number);
+		const bottomNotes = patternNotes.slice(0, 7);
+		const topNotes = patternNotes.slice(7);
 
 		const top = document.createElement('div');
 		top.classList.add('pad', 'pad-top');
@@ -959,6 +960,8 @@ class Rbbrto extends HTMLElement {
 			}
 		});
 		el.addEventListener('pointerup', stop);
+		el.addEventListener('pointercancel', stop);
+		el.addEventListener('lostpointercapture', stop);
 		el.addEventListener('pointerleave', stop);
 	}
 
@@ -1081,3 +1084,4 @@ class Rbbrto extends HTMLElement {
 }
 
 customElements.define('rbbrto-sequencer', Rbbrto);
+
