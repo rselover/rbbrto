@@ -13,9 +13,13 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
 .foot { stroke-linecap:round; stroke-linejoin:round; }
 .sole-outline,.toe-outline { stroke:var(--red); stroke-width:9; fill:#070808; }
 .sole-inset,.toe-inset { stroke:var(--blue); stroke-width:5; fill:none; }
-.toe { transition:transform .08s ease-out; }
-.toe.struck { animation:toe-press var(--beat-s) ease-out infinite; filter:url(#glow); }
-@keyframes toe-press { 0%,100% { transform:translateY(0); } 35% { transform:translateY(19px) scaleY(.94); } }
+.toe.struck { opacity:0; }
+.flying-toe { opacity:0; pointer-events:none; }
+.flying-toe.flying { opacity:1; filter:url(#glow); animation:toe-flight var(--beat-s) ease-in-out infinite; }
+@keyframes toe-flight {
+    0%,100% { transform:translate(var(--home-x),var(--home-y)); }
+    42%,55% { transform:translate(var(--hit-x),var(--hit-y)); }
+}
 .drum-piece,.synth-key { transition:stroke .08s; }
 .drum-piece.struck { stroke:#f1fff7; filter:url(#glow); }
 .synth-key.struck { stroke:var(--green); stroke-width:13; filter:url(#glow); }
@@ -62,5 +66,5 @@ rbbrto-settings { flex:1; max-width:560px; }
 @media (min-width:1600px) { :host { padding:0 max(4vw,calc((100vw - 1700px)/2)); } }
 @media (max-width:900px) { .performance { gap:14px; grid-template-columns:minmax(0,1fr) 104px minmax(0,1fr); } .bank-heading small { display:none; } .edition { font-size:8px; letter-spacing:1px; } .pad-bank { gap:4px; } .pad-bank button { min-height:54px; } .footer-title { display:none; } }
 @media (max-width:600px) { :host { padding:0 18px; } .masthead { height:65px; } .edition { display:none; } svg { min-height:0; max-height:none; aspect-ratio:1600/1000; } .stage { margin:24px auto; } .performance { grid-template-columns:1fr; gap:20px; margin-bottom:25px; } .transport { grid-row:3; display:flex; justify-content:center; align-items:center; gap:10px; } .transport label { margin:0; } .transport input { font-size:24px; } .transport-note { display:none; } .bank-heading small { display:inline; } .pad-bank button { min-height:56px; } footer { flex-wrap:wrap; gap:8px; padding:18px 0; } rbbrto-settings { flex-basis:100%; } .footer-hint { width:100%; text-align:center; font-size:8px; margin-top:6px; } }
-@media (prefers-reduced-motion:reduce) { .playing #hula-dancer,.playing .skirt,.toe.struck { animation:none; } .toe.struck { transform:translateY(12px); } }
+@media (prefers-reduced-motion:reduce) { .playing #hula-dancer,.playing .skirt,.flying-toe.flying { animation:none; } .toe.struck { opacity:1; } .flying-toe.flying { display:none; } }
 `;

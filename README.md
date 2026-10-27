@@ -2,7 +2,7 @@
 
 A little sole. A lot of rhythm. A neon foot orchestra inspired by the supplied Rbbrto reference: red feet, blue inner contours, green instruments and a flower-crowned hula dancer.
 
-The artwork is native SVG. Drum and synth steps press individual toes and illuminate the instruments. The center foot sways and its grass skirt swings while a pattern plays. It rests when playback stops. Reduced-motion preferences disable the repeating movement.
+The artwork is native SVG. The feet face upward at rest. Drum and synth steps detach individual toes, send them down to strike the instruments, then return them to their exact positions on the foot. Instrument highlights follow the notes. The center foot sways and its grass skirt swings while a pattern plays. It rests when playback stops. Reduced-motion preferences disable the repeating movement.
 
 ## Play
 

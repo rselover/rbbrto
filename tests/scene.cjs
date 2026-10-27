@@ -6,15 +6,20 @@ const context = vm.createContext({});
 vm.runInContext(
 	readFileSync(`${__dirname}/../src/scene.js`, 'utf8')
 		.replace('export const sceneMarkup', 'const sceneMarkup')
-		.replace('export default class Scene', 'class Scene') +
-		'\nthis.Scene=Scene; this.markup=sceneMarkup;',
+		.replace('export default class Scene', 'class Scene')
+		.replace('export function toeHome', 'function toeHome') +
+		'\nthis.Scene=Scene; this.markup=sceneMarkup; this.toeHome=toeHome;',
 	context
 );
 function element(dataset = {}) {
 	const classes = new Set();
 	return {
 		dataset,
-		style: {},
+		style: {
+			setProperty(name, value) {
+				this[name] = value;
+			}
+		},
 		textContent: '',
 		attributes: {},
 		classes,
@@ -115,4 +120,25 @@ test('scene contains two articulated feet, hula skirt, 32 steps and 14 labeled c
 	assert(markup.includes('id="hula-dancer"'));
 	assert(markup.includes('class="skirt"'));
 	assert(!markup.includes('gorilla'));
+});
+
+test('upright toes start above the heel and travel to the played instrument', () => {
+	for (const instrument of ['drum', 'synth']) {
+		for (let i = 0; i < 5; i++) assert(context.toeHome(instrument, i).y < 400);
+	}
+	const { scene, root, groups } = setup();
+	scene.synth([0]);
+	const source = root.querySelector('#synth-foot [data-toe="0"]');
+	const flying = root.querySelector('#synth-flying-toes [data-flying-toe="0"]');
+	assert(source.classes.has('struck'));
+	assert(flying.classes.has('flying'));
+	assert.equal(flying.style['--hit-x'], '1285px');
+	assert(parseFloat(flying.style['--hit-y']) > context.toeHome('synth', 0).y);
+	groups.set('#synth-foot .toe, #synth-flying-toes .flying-toe, [data-key]', [
+		source,
+		flying
+	]);
+	scene.clear('synth');
+	assert(!source.classes.has('struck'));
+	assert(!flying.classes.has('flying'));
 });

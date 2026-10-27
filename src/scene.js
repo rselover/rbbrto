@@ -9,6 +9,41 @@ const toes = [
 	{ x: 75, y: 187, rx: 35, ry: 47 }
 ];
 
+const feet = {
+	drum: { x: 287, y: 560, angle: 14, sx: 1.28, sy: -1.28 },
+	synth: { x: 1295, y: 560, angle: -13, sx: -1.25, sy: -1.25 }
+};
+
+export function toeHome(instrument, index) {
+	const f = feet[instrument];
+	const toe = toes[index];
+	const angle = (f.angle * Math.PI) / 180;
+	return {
+		x: f.x + toe.x * f.sx * Math.cos(angle) - toe.y * f.sy * Math.sin(angle),
+		y: f.y + toe.x * f.sx * Math.sin(angle) + toe.y * f.sy * Math.cos(angle)
+	};
+}
+
+function footTransform(instrument) {
+	const f = feet[instrument];
+	return `translate(${f.x} ${f.y}) rotate(${f.angle}) scale(${f.sx} ${f.sy})`;
+}
+
+function flyingToes(instrument) {
+	const scale = Math.abs(feet[instrument].sx);
+	return `<g id="${instrument}-flying-toes" aria-hidden="true">${toes
+		.map((toe, index) => {
+			const home = toeHome(instrument, index);
+			return `<g class="flying-toe" data-flying-toe="${index}" style="--home-x:${
+				home.x
+			}px;--home-y:${home.y}px"><ellipse class="toe-outline" rx="${toe.rx *
+				scale}" ry="${toe.ry * scale}"/><ellipse class="toe-inset" cy="${2 *
+				scale}" rx="${(toe.rx - 8) * scale}" ry="${(toe.ry - 9) *
+				scale}"/></g>`;
+		})
+		.join('')}</g>`;
+}
+
 function foot(id, transform) {
 	return `<g id="${id}" transform="${transform}" class="foot">
         <path class="sole-outline" d="M-36 0 C-63 38-75 91-61 142 C-53 179-34 190-4 181 C28 171 66 159 69 129 C72 101 42 65 41 38 C41 15 29-13 4-16 C-15-19-28-12-36 0Z"/>
@@ -41,7 +76,7 @@ export const sceneMarkup = `
 <header class="masthead"><a class="wordmark" href="https://github.com/rselover/rbbrto" aria-label="Rbbrto source on GitHub">rbbrto<span> &</span></a><span class="edition">A LITTLE SOLE. A LOT OF RHYTHM.</span><span class="live-status"><i></i> <span id="status">READY TO PLAY</span></span></header>
 <main class="stage">
 <svg viewBox="0 0 1600 850" role="img" aria-labelledby="scene-title scene-desc">
-<title id="scene-title">The Rbbrto foot orchestra</title><desc id="scene-desc">Neon feet press a drum kit and synthesizer. A flower-crowned hula foot dances between them while patterns play.</desc>
+<title id="scene-title">The Rbbrto foot orchestra</title><desc id="scene-desc">Upright neon feet send their toes down to strike a drum kit and synthesizer. A flower-crowned hula foot dances between them while patterns play.</desc>
 <defs><filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
 <g id="sequence" transform="translate(584 44)">${Array.from(
 	{ length: 32 },
@@ -52,14 +87,8 @@ export const sceneMarkup = `
 			48})"><rect class="step-box" width="47" height="40" rx="11"/><text class="step-note" x="23.5" y="29" text-anchor="middle">♪</text></g>`
 ).join('')}</g>
 <text x="800" y="260" text-anchor="middle" class="micro-label" id="pattern-label">DRUM PATTERN 01</text>
-<g id="drum-foot-position">${foot(
-	'drum-foot',
-	'translate(287 303) rotate(14) scale(1.28)'
-)}</g>
-<g id="synth-foot-position">${foot(
-	'synth-foot',
-	'translate(1295 295) rotate(-13) scale(-1.25 1.25)'
-)}</g>
+<g id="drum-foot-position">${foot('drum-foot', footTransform('drum'))}</g>
+<g id="synth-foot-position">${foot('synth-foot', footTransform('synth'))}</g>
 <g class="kit" stroke="${GREEN}" fill="#070b09" stroke-width="7" stroke-linejoin="round">
 <g class="hardware" fill="none" stroke="#eee6ff" stroke-width="6"><path d="M115 589 v192 m0-32-50 42 m50-42 50 42 M468 584 v196 m0-31-50 42 m50-42 50 42 M300 660 v96"/></g>
 <g class="drum-piece" data-drum="0"><ellipse cx="127" cy="581" rx="82" ry="17"/><path d="M109 581 q18-10 36 0" fill="none"/></g>
@@ -80,6 +109,7 @@ ${drum(155, 682, 55, 80, 1)}${drum(255, 626, 50, 60, 2)}${drum(
 ).join(
 	''
 )}</g><text x="1305" y="706" text-anchor="middle" fill="${RED}" stroke="none" class="synth-letter">B</text><path d="M1144 748 h330" stroke="${BLUE}" stroke-width="2" opacity=".35"/></g>
+${flyingToes('drum')}${flyingToes('synth')}
 <g id="hula-position" transform="translate(800 438)"><g id="hula-dancer">
 ${foot('hula-foot', 'translate(0 24) rotate(174) scale(.62)')}
 <g class="skirt" stroke="${GREEN}" fill="none" stroke-width="5" stroke-linecap="round">${Array.from(
@@ -109,7 +139,7 @@ ${foot('hula-foot', 'translate(0 24) rotate(174) scale(.62)')}
 		`<ellipse data-lamp="${i}" cx="${40 +
 			i * 59}" cy="51" rx="23" ry="29" stroke="${GREEN}"/>`
 ).join('')}</g>
-<text x="290" y="270" text-anchor="middle" class="instrument-label">01 / PERCUSSION</text><text x="1305" y="265" text-anchor="middle" class="instrument-label">02 / SYNTHESIZER</text>
+<text x="290" y="235" text-anchor="middle" class="instrument-label">01 / PERCUSSION</text><text x="1305" y="235" text-anchor="middle" class="instrument-label">02 / SYNTHESIZER</text>
 <text x="800" y="597" text-anchor="middle" class="micro-label hula-caption">GOOD VIBRATIONS ONLY</text>
 </svg>
 </main>
@@ -144,18 +174,46 @@ export default class Scene {
 	clear(instrument) {
 		this.root
 			.querySelectorAll(
-				`#${instrument}-foot .toe, ${
+				`#${instrument}-foot .toe, #${instrument}-flying-toes .flying-toe, ${
 					instrument === 'drum' ? '[data-drum]' : '[data-key]'
 				}`
 			)
-			.forEach(el => el.classList.remove('struck'));
+			.forEach(el => {
+				el.classList.remove('struck');
+				el.classList.remove('flying');
+			});
 	}
+	strike(instrument, note, x, surfaceY) {
+		const index = note % 5;
+		const toe = this.root.querySelector(
+			`#${instrument}-foot [data-toe="${index}"]`
+		);
+		const flying = this.root.querySelector(
+			`#${instrument}-flying-toes [data-flying-toe="${index}"]`
+		);
+		const scale = Math.abs(feet[instrument].sx);
+		toe.classList.add('struck');
+		flying.style.setProperty('--hit-x', `${x}px`);
+		flying.style.setProperty(
+			'--hit-y',
+			`${surfaceY - toes[index].ry * scale + 7}px`
+		);
+		flying.classList.add('flying');
+	}
+
 	drum(notes) {
 		this.clear('drum');
 		notes.forEach(note => {
-			this.root
-				.querySelector(`#drum-foot [data-toe="${note % 5}"]`)
-				.classList.add('struck');
+			const targets = [
+				[127, 581],
+				[155, 682],
+				[255, 626],
+				[383, 643],
+				[472, 592],
+				[300, 742]
+			];
+			const [x, y] = targets[note % 6];
+			this.strike('drum', note, x, y);
 			this.root
 				.querySelector(`[data-drum="${note % 6}"]`)
 				.classList.add('struck');
@@ -164,9 +222,7 @@ export default class Scene {
 	synth(notes) {
 		this.clear('synth');
 		notes.forEach(note => {
-			this.root
-				.querySelector(`#synth-foot [data-toe="${note % 5}"]`)
-				.classList.add('struck');
+			this.strike('synth', note, 1120 + ((note + 53) % 12) * 33, 618);
 			this.root
 				.querySelector(`[data-key="${(note + 53) % 12}"]`)
 				.classList.add('struck');
