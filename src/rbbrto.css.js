@@ -5,6 +5,12 @@ export default `
 .wordmark { font:700 29px/1 sans-serif; letter-spacing:-1.5px; color:#f5efff; text-decoration:none; }
 .wordmark span { color:var(--green); margin-left:8px; font-weight:400; }
 .edition { font-size:10px; letter-spacing:2.4px; color:#797b84; }
+.audio-controls { display:flex; align-items:center; gap:12px; }
+#audio-start { min-height:44px; padding:0 18px; border:1px solid #00ef9166; border-radius:12px; background:#0a1b12; color:var(--green); font:11px monospace; cursor:pointer; }
+#audio-start:disabled { opacity:.6; cursor:default; }
+#audio-message { font-size:9px; color:#999ca5; max-width:210px; }
+@media(max-width:700px) { .masthead { flex-wrap:wrap; height:auto!important; min-height:58px; padding:12px 0; gap:12px; } .audio-controls { order:3; flex-basis:100%; justify-content:space-between; } #audio-message { max-width:180px; } }
+@media(max-height:550px) and (orientation:landscape) { #audio-message { display:none; } .audio-controls { order:0; flex-basis:auto; } .masthead { flex-wrap:nowrap; } }
 .live-status { color:#797b84; font-size:10px; letter-spacing:1.2px; white-space:nowrap; }
 i { display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; margin-right:7px; }
 .live-status.on { color:var(--green); }

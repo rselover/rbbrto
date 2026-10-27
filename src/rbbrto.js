@@ -1,6 +1,7 @@
 import { drumPatterns, synthPatterns } from './patterns.js';
 import MIDI, { whiteKeys, idxToMidi } from './midi.js';
 import PatternInput from './input.js';
+import AudioUnlock from './audio-unlock.js';
 import Scene, { sceneMarkup } from './scene.js';
 import css from './rbbrto.css.js';
 import { asArrayLike, stringBool } from './utils.js';
@@ -63,18 +64,6 @@ class Rbbrto extends HTMLElement {
 
 		this._printWelcomeText();
 
-		import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm')
-			.then(Tone => {
-				this._Tone = Tone;
-				this._toneSynth = new Tone.PolySynth().toDestination();
-				this._toneDrum = new Tone.MembraneSynth().toDestination();
-				this._toneLoaded = true;
-			})
-			.catch(e => {
-				console.warn('Tone.js failed to load', e);
-				this._toneLoaded = false;
-			});
-
 		// Set some defaults
 		this[$playback] = false;
 		this[$drumPlayback] = false;
@@ -103,6 +92,22 @@ class Rbbrto extends HTMLElement {
 
 		this.shadow.innerHTML = `<style>${css}</style>${sceneMarkup}`;
 		this._scene = new Scene(this.shadow);
+		this._audio = new AudioUnlock(
+			async () => {
+				const Tone = await import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm');
+				this._Tone = Tone;
+				this._toneSynth = new Tone.PolySynth().toDestination();
+				this._toneDrum = new Tone.MembraneSynth().toDestination();
+				return Tone;
+			},
+			phase => this._renderAudioState(phase)
+		);
+		this.shadow.querySelector('#audio-start').addEventListener('click', () => {
+			if (this._audio.phase === 'error') this._audio.load();
+			else this._unlockAudio();
+		});
+		this._audio.load();
+
 		this.shadow.querySelector('#tempo').addEventListener('change', event => {
 			const value = Number(event.target.value);
 			if (Number.isFinite(value) && value >= 30 && value <= 240)
@@ -387,14 +392,6 @@ class Rbbrto extends HTMLElement {
 	 * @param  {int|Array} notes
 	 */
 	_playSynthNotes(notes) {
-		// Resume Tone.js AudioContext if needed
-		if (
-			this._Tone &&
-			this._Tone.context &&
-			this._Tone.context.state !== 'running'
-		) {
-			this._Tone.start();
-		}
 		// Reset the synth UI
 		this._updatePatternUI();
 		this._resetSynths();
@@ -434,11 +431,11 @@ class Rbbrto extends HTMLElement {
 		}
 
 		// --- Tone.js synth playback ---
-		if (this._Tone && this._toneSynth && notes !== null) {
-			// Resume audio context if needed
-			if (this._Tone.context.state !== 'running') {
-				this._Tone.start();
-			}
+		if (
+			this._Tone?.context.state === 'running' &&
+			this._toneSynth &&
+			notes !== null
+		) {
 			const midiNotes = notesArr.map(n =>
 				this._Tone.Frequency(idxToMidi(n), 'midi').toNote()
 			);
@@ -459,14 +456,6 @@ class Rbbrto extends HTMLElement {
 	 * @param  {int|Array} notes
 	 */
 	_playDrumNotes(notes) {
-		// Resume Tone.js AudioContext if needed
-		if (
-			this._Tone &&
-			this._Tone.context &&
-			this._Tone.context.state !== 'running'
-		) {
-			this._Tone.start();
-		}
 		// Reset the drums UI
 		this._updatePatternUI();
 		this._resetDrums();
@@ -496,10 +485,11 @@ class Rbbrto extends HTMLElement {
 		}
 
 		// --- Tone.js drum playback ---
-		if (this._Tone && this._toneDrum && notes !== null) {
-			if (this._Tone.context.state !== 'running') {
-				this._Tone.start();
-			}
+		if (
+			this._Tone?.context.state === 'running' &&
+			this._toneDrum &&
+			notes !== null
+		) {
 			// Play each drum note as a short "kick" (can be improved for more realism)
 			this._toneDrum.triggerAttackRelease('C2', 0.15);
 		}
@@ -711,12 +701,30 @@ class Rbbrto extends HTMLElement {
 	}
 
 	_unlockAudio() {
-		// AudioContext must resume in the input gesture, before the beat callback.
-		if (this._Tone) {
-			this._Tone
-				.start()
-				.catch(error => console.warn('Audio could not start', error));
-		}
+		return this._audio?.unlock();
+	}
+
+	_renderAudioState(phase) {
+		const button = this.shadow.querySelector('#audio-start');
+		const message = this.shadow.querySelector('#audio-message');
+		const labels = {
+			loading: 'Loading sound…',
+			error: 'Retry sound',
+			running: 'Sound on',
+			ready: 'Enable sound',
+			starting: 'Enable sound',
+			blocked: 'Enable sound'
+		};
+		button.textContent = labels[phase];
+		button.disabled = phase === 'loading' || phase === 'running';
+		message.textContent =
+			phase === 'error'
+				? "Sound couldn't load. Tap Retry sound."
+				: phase === 'loading'
+				? 'Preparing instruments…'
+				: phase === 'running'
+				? 'Hold the side buttons to play.'
+				: 'Tap Enable sound, then hold a pattern.';
 	}
 
 	disconnectedCallback() {

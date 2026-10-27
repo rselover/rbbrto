@@ -256,8 +256,8 @@ test('two-note drum steps trigger the monophonic preview once; rests stay silent
 	);
 	const seq = Object.create(Sequencer.prototype);
 	seq[ctx.active] = null;
-	const messages=[];
-	seq[ctx.midi] = { send: (...args)=>messages.push(args) };
+	const messages = [];
+	seq[ctx.midi] = { send: (...args) => messages.push(args) };
 	for (const name of [
 		'_updatePatternUI',
 		'_resetDrums',
@@ -274,7 +274,10 @@ test('two-note drum steps trigger the monophonic preview once; rests stay silent
 	seq._playDrumNotes([1, 0]);
 	assert.equal(attacks.length, 1);
 	assert.deepEqual(visuals, [[1, 0]]);
-	assert.deepEqual(messages.filter(args=>args[1]==='noteon').map(args=>args[2]),[54,53]);
+	assert.deepEqual(
+		messages.filter(args => args[1] === 'noteon').map(args => args[2]),
+		[54, 53]
+	);
 	seq._playDrumNotes(null);
 	assert.equal(attacks.length, 1);
 });
@@ -325,4 +328,20 @@ test('letter controls still play when a pattern button has focus', () => {
 	);
 	win.handlers.keyup(key('KeyA'));
 	assert.deepEqual(events, [['on', 53], ['off', 53]]);
+});
+
+test('touch release retries audio unlock in pointerup and touchend gestures', () => {
+	const { input, unlocked } = setup();
+	const pad = surface({
+		getBoundingClientRect: () => ({ left: 0, width: 700 }),
+		setPointerCapture() {}
+	});
+	input.pad(pad, notes.slice(0, 7));
+	const event = { pointerId: 1, clientX: 20, button: 0, preventDefault() {} };
+	pad.handlers.pointerdown(event);
+	assert.equal(unlocked(), 1);
+	pad.handlers.pointerup(event);
+	assert.equal(unlocked(), 2);
+	pad.handlers.touchend();
+	assert.equal(unlocked(), 3);
 });

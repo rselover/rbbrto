@@ -6,6 +6,8 @@ The artwork is native SVG. The feet face upward at rest. Drum and synth steps de
 
 ## Play
 
+On Safari/iPhone, tap **Enable sound** once the instruments finish loading, then hold a pattern. The status changes to **Sound on**. If sound was interrupted by another app, tap Enable sound again. If the dependency could not load, Retry sound reloads it; then tap Enable sound. MIDI output and animation can continue without local audio.
+
 - Hold **A S D F G H J** for seven drum patterns.
 - Hold **Q W E R T Y U** for seven synth patterns.
 - Hold keys from both rows for a duet. Release the newest key to return to the previous held pattern.
@@ -36,3 +38,5 @@ The sequencer pattern data matches `sampi/finger` (only naming comments differ).
 Portrait and landscape phones keep the app between the two curved thumb banks. Buttons grow with available screen height, with a 44px minimum in short landscape screens. Buttons remain at least 44px in the supported 320px-and-up layouts. Scrolling remains available outside the grips. Physical multitouch devices and MIDI hardware still require device testing.
 
 Bass-note playback regression: some Finger synth patterns have negative internal indexes because their MIDI pitches are below 53. Visual indexes now wrap into the valid toe/key range without changing the musical pitches. Previously a missing toe element threw inside the shared beat loop and stopped playback. Tests exercise all 49 drum/synth pairs through several loops and each synth alone with drums added/removed. `/tests/browser-playback.html` repeats the duet check against real SVG elements using a simulated clock, touch pointers and audio/MIDI doubles. Both browser fixtures disable hardware MIDI output.
+
+Safari audio startup: touch pointerdown alone does not establish user activation on WebKit. Sound resumes synchronously from the explicit button click, keyboard input, touch pointerup or touchend; it never waits for a module import before calling resume. The animation frame does not attempt to unlock audio, and local instrument scheduling is skipped while the audio context is suspended/interrupted. This prevents repeated scheduling on a frozen audio clock from terminating the beat loop. WebKit user activation reference: https://webkit.org/blog/13862/the-user-activation-api/

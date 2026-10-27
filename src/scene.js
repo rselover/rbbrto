@@ -94,7 +94,7 @@ function bank(instrument, keys, offset) {
 }
 
 export const sceneMarkup = `
-<header class="masthead"><a class="wordmark" href="https://github.com/rselover/rbbrto" aria-label="Rbbrto source on GitHub">rbbrto<span> &</span></a><span class="edition">A LITTLE SOLE. A LOT OF RHYTHM.</span><span class="live-status"><i></i> <span id="status">READY TO PLAY</span></span></header>
+<header class="masthead"><a class="wordmark" href="https://github.com/rselover/rbbrto" aria-label="Rbbrto source on GitHub">rbbrto<span> &</span></a><div class="audio-controls"><button id="audio-start" type="button" disabled>Loading sound…</button><span id="audio-message" role="status" aria-live="polite">Preparing instruments…</span></div><span class="live-status"><i></i> <span id="status">READY TO PLAY</span></span></header>
 <section class="cockpit" aria-label="Yoke pattern controls">
 ${bank('drum', 'ASDFGHJ', 0)}
 <main class="stage">

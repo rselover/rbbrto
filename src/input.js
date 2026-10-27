@@ -144,7 +144,13 @@ export default class PatternInput {
 			if (pointers.has(event.pointerId))
 				this.stop(pointers.get(event.pointerId));
 			pointers.set(event.pointerId, {});
-			element.setPointerCapture(event.pointerId);
+			try {
+				element.setPointerCapture(event.pointerId);
+			} catch (error) {
+				this.stop(pointers.get(event.pointerId));
+				pointers.delete(event.pointerId);
+				return;
+			}
 			play(event);
 		});
 		element.addEventListener('pointermove', event => {
@@ -155,7 +161,14 @@ export default class PatternInput {
 			if (source) this.stop(source);
 			pointers.delete(event.pointerId);
 		};
-		element.addEventListener('pointerup', stop);
+		element.addEventListener('pointerup', event => {
+			if (pointers.has(event.pointerId)) this.unlock();
+			stop(event);
+		});
+		// iOS also recognizes touchend; this is harmless after pointerup succeeds.
+		element.addEventListener('touchend', () => this.unlock(), {
+			passive: true
+		});
 		element.addEventListener('pointercancel', stop);
 		element.addEventListener('lostpointercapture', stop);
 	}
