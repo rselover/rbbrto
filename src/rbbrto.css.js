@@ -148,7 +148,7 @@ rbbrto-settings {
         position: absolute;
         left: 0;
         width: 100%;
-        height: 50%;
+        height: calc((100% - var(--settings-height, 10%)) / 2);
         touch-action: none;
         z-index: 10;
         background: rgba(255, 255, 255, 0.05);
@@ -157,7 +157,8 @@ rbbrto-settings {
         top: 0;
 }
 .pad-bottom {
-        top: 50%;
+        top: calc((100% - var(--settings-height, 10%)) / 2);
 }
 
 `;
+
