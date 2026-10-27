@@ -72,8 +72,29 @@ function drum(x, y, w, h, id) {
 		8} ${y + 7} v24 M${x + w - 8} ${y + 7} v24"/></g>`;
 }
 
+function bank(instrument, keys, offset) {
+	return `<div class="bank-wrap ${instrument}-grip"><div class="bank-heading"><span><i></i>${
+		instrument === 'drum' ? 'DRUMS' : 'SYNTH'
+	}</span><small>HOLD / SLIDE</small></div><div class="pad-bank ${instrument}-bank" role="group" aria-label="${
+		instrument === 'drum' ? 'Drum' : 'Synth'
+	} patterns">${keys
+		.split('')
+		.map(
+			(key, index) =>
+				`<button type="button" data-pattern="${index +
+					offset}" aria-label="${instrument} pattern ${index +
+					1}, key ${key}" aria-pressed="false"><span>${key}</span><small>0${index +
+					1}</small></button>`
+		)
+		.join('')}</div><span class="grip-caption">${
+		instrument === 'drum' ? 'LEFT HAND' : 'RIGHT HAND'
+	}</span></div>`;
+}
+
 export const sceneMarkup = `
 <header class="masthead"><a class="wordmark" href="https://github.com/rselover/rbbrto" aria-label="Rbbrto source on GitHub">rbbrto<span> &</span></a><span class="edition">A LITTLE SOLE. A LOT OF RHYTHM.</span><span class="live-status"><i></i> <span id="status">READY TO PLAY</span></span></header>
+<section class="cockpit" aria-label="Yoke pattern controls">
+${bank('drum', 'ASDFGHJ', 0)}
 <main class="stage">
 <svg viewBox="0 0 1600 850" role="img" aria-labelledby="scene-title scene-desc">
 <title id="scene-title">The Rbbrto foot orchestra</title><desc id="scene-desc">Upright neon feet send their toes down to strike a drum kit and synthesizer. A flower-crowned hula foot dances between them while patterns play.</desc>
@@ -143,27 +164,8 @@ ${foot('hula-foot', 'translate(0 24) rotate(174) scale(.62)')}
 <text x="800" y="597" text-anchor="middle" class="micro-label hula-caption">GOOD VIBRATIONS ONLY</text>
 </svg>
 </main>
-<section class="performance" aria-label="Pattern controls">
-<div class="bank-wrap"><div class="bank-heading"><span><i></i> DRUMS</span><small>HOLD A KEY / SLIDE TO PLAY</small></div><div class="pad-bank drum-bank" role="group" aria-label="Drum patterns">${'ASDFGHJ'
-	.split('')
-	.map(
-		(k, i) =>
-			`<button type="button" data-pattern="${i}" aria-label="Drum pattern ${i +
-				1}, key ${k}" aria-pressed="false"><span>${k}</span><small>0${i +
-				1}</small></button>`
-	)
-	.join('')}</div></div>
-<div class="transport"><span class="tempo-label">TEMPO</span><label><input id="tempo" type="number" min="30" max="240" value="125" aria-label="Tempo in beats per minute"/><span>BPM</span></label><span class="transport-note">HOLD BOTH ROWS TO DUET</span></div>
-<div class="bank-wrap"><div class="bank-heading"><span><i></i> SYNTH</span><small>HOLD A KEY / SLIDE TO PLAY</small></div><div class="pad-bank synth-bank" role="group" aria-label="Synth patterns">${'QWERTYU'
-	.split('')
-	.map(
-		(k, i) =>
-			`<button type="button" data-pattern="${i +
-				7}" aria-label="Synth pattern ${i +
-				1}, key ${k}" aria-pressed="false"><span>${k}</span><small>0${i +
-				1}</small></button>`
-	)
-	.join('')}</div></div>
+${bank('synth', 'QWERTYU', 7)}
+<div class="transport"><span class="tempo-label">TEMPO</span><label><input id="tempo" type="number" min="30" max="240" value="125" aria-label="Tempo in beats per minute"/><span>BPM</span></label><span class="transport-note">HOLD BOTH GRIPS TO DUET</span></div>
 </section>
 <footer><span class="footer-title">MADE TO MOVE.</span><rbbrto-settings></rbbrto-settings><span class="footer-hint">TOUCH · KEYS · MIDI</span></footer>`;
 

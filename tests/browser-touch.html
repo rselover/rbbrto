@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Touch regression check</title><link rel="stylesheet" href="../src/style.css"><script type="module" src="../src/settings.js"></script><script type="module" src="../src/rbbrto.js"></script></head><body><output id="result" style="color:white;position:fixed;top:0;left:0;z-index:99;background:#111;padding:12px">Checking touch inputs…</output><rbbrto-sequencer control-channel="14" drum-channel="1" synth-channel="8" bpm="125"></rbbrto-sequencer><script type="module">
+await customElements.whenDefined('rbbrto-sequencer');
+const app=document.querySelector('rbbrto-sequencer'),root=app.shadowRoot;
+const left=root.querySelector('.drum-bank'),right=root.querySelector('.synth-bank');
+// Synthetic PointerEvents do not create native capture: stub capture only for this fixture.
+left.setPointerCapture=right.setPointerCapture=()=>{};
+const button=i=>root.querySelector(`[data-pattern="${i}"]`);
+const fire=(bank,type,id,index)=>{const r=button(index).getBoundingClientRect();bank.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:id,pointerType:'touch',button:0,clientX:r.left+r.width/2,clientY:r.top+r.height/2}));};
+const active=i=>button(i).getAttribute('aria-pressed')==='true';
+const check=(condition,label)=>{if(!condition)throw new Error(label);};
+try {
+ fire(left,'pointerdown',101,0);fire(right,'pointerdown',102,7);
+ check(active(0)&&active(7),'simultaneous drum and synth');
+ fire(left,'pointermove',101,4);
+ check(active(4)&&!active(0)&&active(7),'vertical slide selects row 3 and preserves synth');
+ fire(right,'pointerup',102,7);
+ check(active(4)&&!active(7),'synth release preserves drum');
+ fire(left,'pointercancel',101,4);
+ check(!root.querySelector('[aria-pressed="true"]'),'cancellation releases drum');
+ fire(left,'pointerdown',103,6);window.dispatchEvent(new Event('blur'));fire(left,'pointermove',103,0);
+ check(!root.querySelector('[aria-pressed="true"]'),'blur cancels pointer ownership');
+ document.querySelector('#result').textContent='PASS — duet, vertical slide, independent release, cancellation, blur';
+} catch(error) { document.querySelector('#result').textContent='FAIL — '+error.message; }
+</script></body></html>
