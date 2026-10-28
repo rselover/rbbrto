@@ -140,6 +140,7 @@ test('real sequencer callbacks keep drums and synth together and restore held pa
 	let Sequencer;
 	const frames = [];
 	const ctx = vm.createContext({
+		PatternInput,
 		HTMLElement: class {},
 		MIDI: class {
 			send() {}
@@ -227,6 +228,7 @@ test('real sequencer callbacks keep drums and synth together and restore held pa
 test('two-note drum steps trigger the monophonic preview once; rests stay silent', () => {
 	let Sequencer;
 	const ctx = vm.createContext({
+		PatternInput,
 		HTMLElement: class {},
 		customElements: {
 			define: (_, value) => {
@@ -433,4 +435,62 @@ test('blur clears native touch ownership so a late move cannot restart a pattern
 	pad.handlers.touchmove(touchEvent([11, 410]));
 	assert.equal(events.length, count);
 	assert.equal(input.held.size, 0);
+});
+
+test('lock latches one pattern per instrument, replaces it, and unlock releases only latched notes', () => {
+	const { input, events } = setup();
+	input.setLocked(true);
+	input.start('a', 53);
+	input.stop('a');
+	input.start('q', 65);
+	input.stop('q');
+	assert.deepEqual(events, [['on', 53], ['on', 65]]);
+	assert.equal(input.latched.size, 2);
+	input.start('s', 55);
+	input.stop('s');
+	assert.deepEqual(events.slice(-2), [['on', 55], ['off', 53]]);
+	assert.equal(input.latched.get('synth'), 65);
+	input.start('held', 67);
+	input.setLocked(false);
+	assert(input.held.has('held'));
+	assert(!input.latched.size);
+	assert.equal(events.filter(e => e[0] === 'off' && e[1] === 67).length, 0);
+	input.stop('held');
+	assert.deepEqual(events.at(-1), ['off', 67]);
+});
+
+test('releasing an older held key cannot replace the newest locked pattern', () => {
+	const { input } = setup();
+	input.setLocked(true);
+	input.start('a', 53);
+	input.start('s', 55);
+	input.stop('a');
+	input.stop('s');
+	assert.equal(input.latched.get('drum'), 55);
+});
+
+test('Stop and Escape clear held and latched notes even while lock remains on', () => {
+	const { input, events } = setup();
+	const win = surface(),
+		page = surface();
+	input.keyboard(win, page);
+	input.setLocked(true);
+	input.start('a', 53);
+	input.stop('a');
+	input.start('q', 65);
+	win.handlers.keydown(key('Escape'));
+	assert.equal(input.held.size, 0);
+	assert.equal(input.latched.size, 0);
+	assert.equal(input.locked, true);
+	assert.deepEqual(events.slice(-2), [['off', 65], ['off', 53]]);
+});
+
+test('enabling lock after falling back to an older held key latches that current pattern', () => {
+	const { input } = setup();
+	input.start('a', 53);
+	input.start('s', 55);
+	input.stop('s');
+	input.setLocked(true);
+	input.stop('a');
+	assert.equal(input.latched.get('drum'), 53);
 });

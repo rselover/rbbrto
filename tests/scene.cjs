@@ -133,7 +133,7 @@ test('upright toes start above the heel and travel to the played instrument', ()
 	assert(source.classes.has('struck'));
 	assert(flying.classes.has('flying'));
 	scene.tick(0);
-	scene.tick(60);
+	scene.tick(120);
 	assert.equal(flying.attributes.transform, 'translate(1285 593.75)');
 	groups.set('#synth-foot .toe, #synth-flying-toes .flying-toe, [data-key]', [
 		source,
@@ -151,15 +151,15 @@ test('toe flight changes SVG positions frame by frame and returns to the foot', 
 	const source = root.querySelector('#synth-foot [data-toe="0"]');
 	const home = flying.attributes.transform;
 	scene.tick(1000);
-	scene.tick(1030);
+	scene.tick(1060);
 	const outbound = flying.attributes.transform;
 	assert.notEqual(outbound, home);
-	scene.tick(1060);
+	scene.tick(1120);
 	const contact = flying.attributes.transform;
 	assert.notEqual(contact, outbound);
-	scene.tick(1090);
+	scene.tick(1180);
 	assert.notEqual(flying.attributes.transform, contact);
-	scene.tick(1120);
+	scene.tick(1240);
 	assert.equal(flying.attributes.transform, home);
 	assert(!source.classes.has('struck'));
 	assert(!flying.classes.has('flying'));
@@ -185,4 +185,59 @@ test('motion control respects reduced motion and can explicitly enable toe fligh
 	assert(
 		!root.querySelector('#synth-foot [data-toe="0"]').classes.has('struck')
 	);
+});
+
+test('rapid notes and rests preserve a readable flight until return or release', () => {
+	const { scene, root } = setup();
+	scene.synth([0]);
+	scene.tick(0);
+	scene.tick(80);
+	const toe = root.querySelector('#synth-flying-toes [data-flying-toe="0"]');
+	const position = toe.attributes.transform;
+	scene.synth([0]);
+	assert.equal(
+		toe.attributes.transform,
+		position,
+		'repeat starts from current position'
+	);
+	scene.tick(90);
+	scene.tick(170);
+	scene.clearHighlights('synth');
+	assert.equal(
+		scene.motions.size,
+		1,
+		'a rest clears key lights without canceling the flight'
+	);
+	scene.synth([1]);
+	assert.equal(
+		scene.motions.size,
+		2,
+		'another toe does not erase the first flight'
+	);
+	scene.clear('synth');
+	assert.equal(scene.motions.size, 0, 'release restores every toe');
+});
+
+test('portrait viewBox responds to orientation and cleans up its listener', () => {
+	let listener;
+	let removed = false;
+	const portrait = {
+		matches: true,
+		addEventListener: (_, fn) => {
+			listener = fn;
+		},
+		removeEventListener: () => {
+			removed = true;
+		}
+	};
+	context.matchMedia = query =>
+		query.includes('orientation') ? portrait : { matches: false };
+	const { scene, root } = setup();
+	delete context.matchMedia;
+	assert.equal(root.querySelector('svg').attributes.viewBox, '520 0 560 1500');
+	portrait.matches = false;
+	listener();
+	assert.equal(root.querySelector('svg').attributes.viewBox, '0 0 1600 850');
+	scene.disconnectLayout();
+	assert.equal(removed, true);
 });
