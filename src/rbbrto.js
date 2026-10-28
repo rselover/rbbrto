@@ -2,6 +2,7 @@ import { drumPatterns, synthPatterns } from './patterns.js';
 import MIDI, { whiteKeys, idxToMidi } from './midi.js';
 import PatternInput from './input.js';
 import AudioUnlock from './audio-unlock.js';
+import Expression, { bindExpression } from './expression.js';
 import Scene, { sceneMarkup } from './scene.js';
 import css from './rbbrto.css.js';
 import { asArrayLike, stringBool } from './utils.js';
@@ -80,18 +81,45 @@ class Rbbrto extends HTMLElement {
 
 		// Look for MIDI devices
 		this._initMIDI();
-		this._input = new PatternInput(
-			Object.keys(whiteKeys).map(Number),
-			note => this[$midi].noteon(this[$controlChannel], note),
-			note => this[$midi].noteoff(this[$controlChannel], note),
-			() => this._unlockAudio()
-		);
 
 		// Show the SVG
 		this.shadow = this.attachShadow({ mode: 'open' });
 
 		this.shadow.innerHTML = `<style>${css}</style>${sceneMarkup}`;
 		this._scene = new Scene(this.shadow);
+		this._expression = new Expression();
+		this._expressionBindings = ['drum', 'synth'].map(instrument => {
+			const binding = bindExpression(
+				this.shadow.querySelector(`[data-expression="${instrument}"]`),
+				this._expression,
+				instrument,
+				({ x, y }) => {
+					const rhythm =
+						Math.abs(x - 0.5) < 0.02
+							? 'Original rhythm'
+							: x < 0.5
+							? `Sparse ${Math.round((0.5 - x) * 200)}%`
+							: `Fill ${Math.round((x - 0.5) * 200)}%`;
+					this.shadow.querySelector(
+						`[data-expression-output="${instrument}"]`
+					).textContent = `${rhythm} · Expression ${Math.round(y * 100)}%`;
+				}
+			);
+			this.shadow
+				.querySelector(`[data-reset="${instrument}"]`)
+				.addEventListener('click', () => {
+					this._expression.set(instrument, 0.5, 0.65);
+					binding.render();
+				});
+			return binding;
+		});
+		this.shadow.querySelector('#lock-toggle').addEventListener('click', () => {
+			this._input.setLocked(!this._input.locked);
+			this._renderLock();
+		});
+		this.shadow
+			.querySelector('#stop-all')
+			.addEventListener('click', () => this._input.stopAll());
 		this.shadow
 			.querySelector('#motion-toggle')
 			.addEventListener('click', () =>
@@ -140,6 +168,7 @@ class Rbbrto extends HTMLElement {
 
 	// We're in the DOM
 	connectedCallback() {
+		this._scene.connectLayout();
 		this._resetDrums();
 		this._idleDrums();
 
@@ -342,7 +371,7 @@ class Rbbrto extends HTMLElement {
 			// Time to play a note, because the timer has been reset
 			if (this[$drumPlayback]) {
 				this._playDrumNotes(
-					drumPattern[this[$drumPlayhead] % drumPattern.length]
+					this._patternNotes('drum', drumPattern, this[$drumPlayhead])
 				);
 			} else {
 				this._resetDrums();
@@ -351,7 +380,7 @@ class Rbbrto extends HTMLElement {
 
 			if (this[$synthPlayback]) {
 				this._playSynthNotes(
-					synthPattern[this[$synthPlayhead] % synthPattern.length]
+					this._patternNotes('synth', synthPattern, this[$synthPlayhead])
 				);
 			} else {
 				this._resetSynths();
@@ -393,6 +422,24 @@ class Rbbrto extends HTMLElement {
 		}
 	}
 
+	_patternNotes(instrument, pattern, step) {
+		return this._expression
+			? this._expression.notes(instrument, pattern, step)
+			: pattern[step % pattern.length];
+	}
+	_renderLock() {
+		const locked = this._input.locked;
+		const button = this.shadow.querySelector('#lock-toggle');
+		button.setAttribute('aria-pressed', String(locked));
+		button.setAttribute('aria-label', `Lock playback ${locked ? 'on' : 'off'}`);
+		this.shadow.querySelector('#lock-label').textContent = locked
+			? 'Locked'
+			: 'Unlocked';
+		this.shadow.querySelector('#play-hint').textContent = locked
+			? 'RELEASE TO LATCH · STOP TO SILENCE'
+			: 'HOLD BOTH GRIPS TO DUET';
+	}
+
 	/**
 	 * Read notes to play for the synth and show them in the UI
 	 * @param  {int|Array} notes
@@ -425,9 +472,19 @@ class Rbbrto extends HTMLElement {
 
 		// Send new notes to MIDI out
 		if (notes !== null) {
-			midi.send(this[$synthChannel], 'noteon', idxToMidi(notesArr[0]), 127);
+			midi.send(
+				this[$synthChannel],
+				'noteon',
+				idxToMidi(notesArr[0]),
+				this._expression?.velocity('synth') || 127
+			);
 			if (notesArr.length > 1) {
-				midi.send(this[$synthChannel], 'noteon', idxToMidi(notesArr[1]), 127);
+				midi.send(
+					this[$synthChannel],
+					'noteon',
+					idxToMidi(notesArr[1]),
+					this._expression?.velocity('synth') || 127
+				);
 			}
 		} else {
 			// Stay idle if no notes should be played
@@ -445,7 +502,12 @@ class Rbbrto extends HTMLElement {
 			const midiNotes = notesArr.map(n =>
 				this._Tone.Frequency(idxToMidi(n), 'midi').toNote()
 			);
-			this._toneSynth.triggerAttackRelease(midiNotes, 0.3);
+			this._toneSynth.triggerAttackRelease(
+				midiNotes,
+				this._expression?.gate('synth') || 0.3,
+				undefined,
+				this._expression?.strength('synth') || 1
+			);
 		}
 
 		// Store played notes, so we can stop them the next time anything is played
@@ -484,9 +546,19 @@ class Rbbrto extends HTMLElement {
 
 		// Send new notes to MIDI out
 		if (notes !== null) {
-			midi.send(this[$drumChannel], 'noteon', idxToMidi(notesArr[0]), 127);
+			midi.send(
+				this[$drumChannel],
+				'noteon',
+				idxToMidi(notesArr[0]),
+				this._expression?.velocity('drum') || 127
+			);
 			if (notesArr.length > 1) {
-				midi.send(this[$drumChannel], 'noteon', idxToMidi(notesArr[1]), 127);
+				midi.send(
+					this[$drumChannel],
+					'noteon',
+					idxToMidi(notesArr[1]),
+					this._expression?.velocity('drum') || 127
+				);
 			}
 		}
 
@@ -497,7 +569,12 @@ class Rbbrto extends HTMLElement {
 			notes !== null
 		) {
 			// Play each drum note as a short "kick" (can be improved for more realism)
-			this._toneDrum.triggerAttackRelease('C2', 0.15);
+			this._toneDrum.triggerAttackRelease(
+				'C2',
+				Math.min(0.2, this._expression?.gate('drum') || 0.15),
+				undefined,
+				this._expression?.strength('drum') || 1
+			);
 		}
 
 		if (notes === null) {
@@ -549,16 +626,18 @@ class Rbbrto extends HTMLElement {
 	}
 
 	_resetDrums() {
-		this._scene.clear('drum');
+		this._scene.clearHighlights('drum');
 	}
 	_idleDrums() {
-		this._scene.clear('drum');
+		if (!this[$drumPlayback]) this._scene.clear('drum');
+		else this._scene.clearHighlights('drum');
 	}
 	_resetSynths() {
-		this._scene.clear('synth');
+		this._scene.clearHighlights('synth');
 	}
 	_idleSynths() {
-		this._scene.clear('synth');
+		if (!this[$synthPlayback]) this._scene.clear('synth');
+		else this._scene.clearHighlights('synth');
 	}
 
 	/**
@@ -575,7 +654,7 @@ class Rbbrto extends HTMLElement {
 		 * @param  {int} channel
 		 * @param  {int} note
 		 */
-		this[$midi].noteon = (channel, note) => {
+		this._pressPattern = (channel, note) => {
 			// Only handle input on the control channel
 			if (channel !== this[$controlChannel]) {
 				return;
@@ -622,7 +701,7 @@ class Rbbrto extends HTMLElement {
 		 * @param  {int} channel
 		 * @param  {int} note
 		 */
-		this[$midi].noteoff = (channel, note) => {
+		this._releasePattern = (channel, note) => {
 			// Only handle input on the control channel
 			if (channel !== this[$controlChannel]) {
 				return;
@@ -677,6 +756,20 @@ class Rbbrto extends HTMLElement {
 				}
 			}
 			this._updatePatternUI();
+		};
+		this._input = new PatternInput(
+			Object.keys(whiteKeys).map(Number),
+			note => this._pressPattern(this[$controlChannel], note),
+			note => this._releasePattern(this[$controlChannel], note),
+			() => this._unlockAudio()
+		);
+		this[$midi].noteon = (channel, note, device = 'default') => {
+			if (channel === this[$controlChannel])
+				this._input.start(`midi:${device}:${channel}:${note}`, note);
+		};
+		this[$midi].noteoff = (channel, note, device = 'default') => {
+			if (channel === this[$controlChannel])
+				this._input.stop(`midi:${device}:${channel}:${note}`);
 		};
 	}
 
@@ -735,6 +828,8 @@ class Rbbrto extends HTMLElement {
 	}
 
 	disconnectedCallback() {
+		this._scene.disconnectLayout();
+		for (const binding of this._expressionBindings || []) binding.clear();
 		if (this._disconnectKeyboard) this._disconnectKeyboard();
 		this._disconnectKeyboard = null;
 	}

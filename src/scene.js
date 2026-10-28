@@ -94,7 +94,7 @@ function bank(instrument, keys, offset) {
 }
 
 export const sceneMarkup = `
-<header class="masthead"><a class="wordmark" href="https://github.com/rselover/rbbrto" aria-label="Rbbrto source on GitHub">rbbrto<span> &</span></a><div class="audio-controls"><button id="audio-start" type="button" disabled>Loading sound…</button><span id="audio-message" role="status" aria-live="polite">Preparing instruments…</span></div><span class="live-status"><i></i> <span id="status">READY TO PLAY</span></span></header>
+<header class="masthead"><a class="wordmark" href="https://github.com/rselover/rbbrto" aria-label="Rbbrto source on GitHub">rbbrto</a><div class="audio-controls"><button id="audio-start" type="button" disabled>Loading sound…</button><span id="audio-message" role="status" aria-live="polite">Preparing instruments…</span></div><span class="live-status"><i></i> <span id="status">READY TO PLAY</span></span><button id="lock-toggle" type="button" aria-pressed="false" aria-label="Lock playback off"><span class="lock-icon" aria-hidden="true"></span><span id="lock-label">Unlocked</span></button></header>
 <section class="cockpit" aria-label="Yoke pattern controls">
 ${bank('drum', 'ASDFGHJ', 0)}
 <main class="stage">
@@ -167,7 +167,17 @@ ${foot('hula-foot', 'translate(0 24) rotate(174) scale(.62)')}
 </svg>
 </main>
 ${bank('synth', 'QWERTYU', 7)}
-<div class="transport"><span class="tempo-label">TEMPO</span><label><input id="tempo" type="number" min="30" max="240" value="125" aria-label="Tempo in beats per minute"/><span>BPM</span></label><span class="transport-note">HOLD BOTH GRIPS TO DUET</span></div>
+<div class="transport"><span class="tempo-label">TEMPO</span><label><input id="tempo" type="number" min="30" max="240" value="125" aria-label="Tempo in beats per minute"/><span>BPM</span></label><span class="transport-note" id="play-hint">HOLD BOTH GRIPS TO DUET</span><button id="stop-all" type="button">Stop</button></div>
+</section>
+<section class="expression-controls" aria-label="Live rhythm and expression">
+${['drum', 'synth']
+	.map(
+		instrument =>
+			`<div class="expression-panel ${instrument}-expression"><div class="expression-heading"><span>${
+				instrument === 'drum' ? 'DRUM' : 'SYNTH'
+			} / PLAY THE FEEL</span><button type="button" data-reset="${instrument}" aria-label="Reset ${instrument} rhythm and expression">Reset</button></div><div class="expression-pad" data-expression="${instrument}" role="group" tabindex="0"><span class="axis top">STRONG</span><span class="axis bottom">SOFT</span><span class="axis left">SPARSE</span><span class="axis right">FILL</span><i class="expression-cursor" aria-hidden="true"></i></div><output data-expression-output="${instrument}">Original rhythm · Expression 65%</output><p>Drag ↔ rhythm · ↕ expression. Lock a pattern to play hands-free.</p></div>`
+	)
+	.join('')}
 </section>
 <footer><button id="motion-toggle" type="button" aria-pressed="true">Motion on</button><rbbrto-settings></rbbrto-settings><span class="footer-hint">TOUCH · KEYS · MIDI</span></footer>`;
 
@@ -176,11 +186,40 @@ export default class Scene {
 		this.root = root;
 		this.motions = new Map();
 		this.stepDuration = 0.12;
+		this.portrait =
+			typeof matchMedia === 'function'
+				? matchMedia('(max-width: 600px) and (orientation: portrait)')
+				: null;
+		this.layout = () =>
+			this.root
+				.querySelector('svg')
+				.setAttribute(
+					'viewBox',
+					this.portrait?.matches ? '520 0 560 1500' : '0 0 1600 850'
+				);
+		this.layout();
+		this.connectLayout();
 		this.setMotionEnabled(
 			typeof matchMedia !== 'function' ||
 				!matchMedia('(prefers-reduced-motion: reduce)').matches
 		);
 	}
+	connectLayout() {
+		if (this.layoutListening) return;
+		this.portrait?.addEventListener?.('change', this.layout);
+		this.layoutListening = true;
+		this.layout();
+	}
+	disconnectLayout() {
+		this.portrait?.removeEventListener?.('change', this.layout);
+		this.layoutListening = false;
+	}
+	clearHighlights(instrument) {
+		this.root
+			.querySelectorAll(instrument === 'drum' ? '[data-drum]' : '[data-key]')
+			.forEach(el => el.classList.remove('struck'));
+	}
+
 	setMotionEnabled(enabled) {
 		this.motionEnabled = enabled;
 		for (const motion of this.motions.values()) this.finish(motion);
@@ -205,7 +244,7 @@ export default class Scene {
 			if (motion.started === null) motion.started = timestamp;
 			const progress = Math.min(
 				1,
-				(timestamp - motion.started) / (this.stepDuration * 1000)
+				(timestamp - motion.started) / motion.duration
 			);
 			if (progress >= 1) {
 				this.finish(motion);
@@ -219,8 +258,13 @@ export default class Scene {
 					? 1
 					: (1 - progress) / 0.45;
 			const eased = travel * travel * (3 - 2 * travel);
-			const x = motion.home.x + (motion.x - motion.home.x) * eased;
-			const y = motion.home.y + (motion.y - motion.home.y) * eased;
+			const x =
+				(progress < 0.55 ? motion.from.x : motion.home.x) +
+				(motion.x - (progress < 0.55 ? motion.from.x : motion.home.x)) * eased;
+			const y =
+				(progress < 0.55 ? motion.from.y : motion.home.y) +
+				(motion.y - (progress < 0.55 ? motion.from.y : motion.home.y)) * eased;
+			motion.current = { x, y };
 			motion.flying.setAttribute('transform', `translate(${x} ${y})`);
 		}
 	}
@@ -254,7 +298,8 @@ export default class Scene {
 		toe.classList.add('struck');
 		const home = toeHome(instrument, index);
 		const y = surfaceY - toes[index].ry * scale + 7;
-		flying.setAttribute('transform', `translate(${home.x} ${home.y})`);
+		const from = this.motions.get(flying)?.current || home;
+		flying.setAttribute('transform', `translate(${from.x} ${from.y})`);
 		this.motions.set(flying, {
 			instrument,
 			source: toe,
@@ -262,13 +307,16 @@ export default class Scene {
 			home,
 			x,
 			y,
+			from,
+			current: from,
+			duration: Math.max(240, this.stepDuration * 1000),
 			started: null
 		});
 		flying.classList.add('flying');
 	}
 
 	drum(notes) {
-		this.clear('drum');
+		this.clearHighlights('drum');
 		notes.forEach(note => {
 			const targets = [
 				[127, 581],
@@ -286,7 +334,7 @@ export default class Scene {
 		});
 	}
 	synth(notes) {
-		this.clear('synth');
+		this.clearHighlights('synth');
 		notes.forEach(note => {
 			this.strike('synth', note, 1120 + wrap(note + 53, 12) * 33, 618);
 			this.root

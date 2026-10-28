@@ -1,4 +1,4 @@
-# rbbrto &
+# rbbrto
 
 A little sole. A lot of rhythm. A neon foot orchestra inspired by the supplied Rbbrto reference: red feet, blue inner contours, green instruments and a flower-crowned hula dancer.
 
@@ -46,3 +46,13 @@ Native mobile input: pattern banks handle touchstart/touchmove/touchend/touchcan
 Toe motion now uses SVG transform attributes updated by the existing beat animation loop, rather than CSS-variable SVG keyframes. The flight is timed to the current step duration and restores the original toe after contact or release. Motion on/off in the footer defaults to the system reduced-motion preference and allows an explicit override. Browser playback tests assert changing transform values through all 49 duets.
 
 Updates: the service worker revalidates network assets instead of trusting a still-fresh HTTP cache entry, activates the new worker, and claims clients. Registration checks for an update without the worker-script cache. After deploying an update, refresh Safari; if necessary refresh once more after the worker activates. The Motion on/off control identifies this version. Previously cached offline responses remain available when the network is unavailable.
+
+Mobile toe visibility: portrait screens now use a tall scene composition between the side banks instead of shrinking the entire wide orchestra into the center column. Moving toes are unfiltered SVG vectors. Flights last at least 240ms, can continue across short rests, and restart from their current position for rapid repeated notes; release still restores the foot immediately. `tests/browser-toe-paint.html` freezes a toe at instrument contact for visual inspection of actual pixels, supplementing coordinate tests.
+
+## Lock and play the feel
+
+The top-right lock latches the current drum and synth patterns when you release their controls. Selecting another pattern replaces that instrument's latch. Unlock releases latched notes but preserves keys/fingers that are still physically held. **Stop** or **Escape** silences both instruments regardless of lock; leaving the window also clears held/latched inputs. The same ownership/latch logic handles touch, computer keys and incoming MIDI (separate device identities are retained).
+
+The two live pads below the stage control each instrument independently. Drag **left/right** for sparse/original/filled rhythm density and **up/down** for soft/strong expression. Expression changes MIDI note velocity and local audio velocity/note duration. Rhythm changes are deterministic, preserve original data, and leave the center region unchanged; fills reuse notes from the current pattern. Reset returns that pad to the original rhythm and default expression. Arrow keys adjust a focused pad.
+
+`tests/browser-performance.html` checks native-touch latch/release, duet, replacement, XY gestures, reset, Stop and unlocked behavior against the rendered app.
