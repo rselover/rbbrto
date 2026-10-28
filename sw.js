@@ -3,8 +3,15 @@ const CACHE_NAME = 'pwabuilder-offline';
 
 self.addEventListener('install', event => {
 	event.waitUntil(
-		caches.open(CACHE_NAME).then(cache => cache.add('index.html'))
+		caches
+			.open(CACHE_NAME)
+			.then(cache => cache.add('index.html'))
+			.then(() => self.skipWaiting())
 	);
+});
+
+self.addEventListener('activate', event => {
+	event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', event => {
@@ -14,13 +21,18 @@ self.addEventListener('fetch', event => {
 
 	// Extend the worker lifetime before the asynchronous fetch finishes.
 	let finishCache;
-	event.waitUntil(new Promise(resolve => { finishCache = resolve; }));
+	event.waitUntil(
+		new Promise(resolve => {
+			finishCache = resolve;
+		})
+	);
 	event.respondWith(
-		fetch(event.request)
+		fetch(event.request, { cache: 'no-cache' })
 			.then(response => {
 				if (response.ok) {
 					const copy = response.clone();
-					caches.open(CACHE_NAME)
+					caches
+						.open(CACHE_NAME)
 						.then(cache => cache.put(event.request, copy))
 						.catch(error => console.warn('Offline cache update failed', error))
 						.finally(finishCache);

@@ -132,8 +132,9 @@ test('upright toes start above the heel and travel to the played instrument', ()
 	const flying = root.querySelector('#synth-flying-toes [data-flying-toe="0"]');
 	assert(source.classes.has('struck'));
 	assert(flying.classes.has('flying'));
-	assert.equal(flying.style['--hit-x'], '1285px');
-	assert(parseFloat(flying.style['--hit-y']) > context.toeHome('synth', 0).y);
+	scene.tick(0);
+	scene.tick(60);
+	assert.equal(flying.attributes.transform, 'translate(1285 593.75)');
 	groups.set('#synth-foot .toe, #synth-flying-toes .flying-toe, [data-key]', [
 		source,
 		flying
@@ -141,4 +142,47 @@ test('upright toes start above the heel and travel to the played instrument', ()
 	scene.clear('synth');
 	assert(!source.classes.has('struck'));
 	assert(!flying.classes.has('flying'));
+});
+
+test('toe flight changes SVG positions frame by frame and returns to the foot', () => {
+	const { scene, root } = setup();
+	scene.synth([0]);
+	const flying = root.querySelector('#synth-flying-toes [data-flying-toe="0"]');
+	const source = root.querySelector('#synth-foot [data-toe="0"]');
+	const home = flying.attributes.transform;
+	scene.tick(1000);
+	scene.tick(1030);
+	const outbound = flying.attributes.transform;
+	assert.notEqual(outbound, home);
+	scene.tick(1060);
+	const contact = flying.attributes.transform;
+	assert.notEqual(contact, outbound);
+	scene.tick(1090);
+	assert.notEqual(flying.attributes.transform, contact);
+	scene.tick(1120);
+	assert.equal(flying.attributes.transform, home);
+	assert(!source.classes.has('struck'));
+	assert(!flying.classes.has('flying'));
+	assert.equal(scene.motions.size, 0);
+});
+
+test('motion control respects reduced motion and can explicitly enable toe flight', () => {
+	context.matchMedia = () => ({ matches: true });
+	const { scene, root } = setup();
+	delete context.matchMedia;
+	assert.equal(scene.motionEnabled, false);
+	scene.synth([0]);
+	assert.equal(scene.motions.size, 0);
+	assert.equal(root.querySelector('#motion-toggle').textContent, 'Motion off');
+	scene.setMotionEnabled(true);
+	scene.synth([0]);
+	scene.tick(0);
+	scene.tick(40);
+	assert.equal(scene.motions.size, 1);
+	assert.equal(root.querySelector('#motion-toggle').textContent, 'Motion on');
+	scene.setMotionEnabled(false);
+	assert.equal(scene.motions.size, 0);
+	assert(
+		!root.querySelector('#synth-foot [data-toe="0"]').classes.has('struck')
+	);
 });

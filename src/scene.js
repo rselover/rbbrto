@@ -36,9 +36,9 @@ function flyingToes(instrument) {
 	return `<g id="${instrument}-flying-toes" aria-hidden="true">${toes
 		.map((toe, index) => {
 			const home = toeHome(instrument, index);
-			return `<g class="flying-toe" data-flying-toe="${index}" style="--home-x:${
+			return `<g class="flying-toe" data-flying-toe="${index}" transform="translate(${
 				home.x
-			}px;--home-y:${home.y}px"><ellipse class="toe-outline" rx="${toe.rx *
+			} ${home.y})"><ellipse class="toe-outline" rx="${toe.rx *
 				scale}" ry="${toe.ry * scale}"/><ellipse class="toe-inset" cy="${2 *
 				scale}" rx="${(toe.rx - 8) * scale}" ry="${(toe.ry - 9) *
 				scale}"/></g>`;
@@ -169,13 +169,67 @@ ${foot('hula-foot', 'translate(0 24) rotate(174) scale(.62)')}
 ${bank('synth', 'QWERTYU', 7)}
 <div class="transport"><span class="tempo-label">TEMPO</span><label><input id="tempo" type="number" min="30" max="240" value="125" aria-label="Tempo in beats per minute"/><span>BPM</span></label><span class="transport-note">HOLD BOTH GRIPS TO DUET</span></div>
 </section>
-<footer><span class="footer-title">MADE TO MOVE.</span><rbbrto-settings></rbbrto-settings><span class="footer-hint">TOUCH · KEYS · MIDI</span></footer>`;
+<footer><button id="motion-toggle" type="button" aria-pressed="true">Motion on</button><rbbrto-settings></rbbrto-settings><span class="footer-hint">TOUCH · KEYS · MIDI</span></footer>`;
 
 export default class Scene {
 	constructor(root) {
 		this.root = root;
+		this.motions = new Map();
+		this.stepDuration = 0.12;
+		this.setMotionEnabled(
+			typeof matchMedia !== 'function' ||
+				!matchMedia('(prefers-reduced-motion: reduce)').matches
+		);
+	}
+	setMotionEnabled(enabled) {
+		this.motionEnabled = enabled;
+		for (const motion of this.motions.values()) this.finish(motion);
+		this.motions.clear();
+		this.root
+			.querySelector('svg')
+			.classList.toggle('motion-disabled', !enabled);
+		const button = this.root.querySelector('#motion-toggle');
+		button.textContent = enabled ? 'Motion on' : 'Motion off';
+		button.setAttribute('aria-pressed', String(enabled));
+	}
+	finish(motion) {
+		motion.source.classList.remove('struck');
+		motion.flying.classList.remove('flying');
+		motion.flying.setAttribute(
+			'transform',
+			`translate(${motion.home.x} ${motion.home.y})`
+		);
+	}
+	tick(timestamp) {
+		for (const [key, motion] of this.motions) {
+			if (motion.started === null) motion.started = timestamp;
+			const progress = Math.min(
+				1,
+				(timestamp - motion.started) / (this.stepDuration * 1000)
+			);
+			if (progress >= 1) {
+				this.finish(motion);
+				this.motions.delete(key);
+				continue;
+			}
+			const travel =
+				progress < 0.45
+					? progress / 0.45
+					: progress < 0.55
+					? 1
+					: (1 - progress) / 0.45;
+			const eased = travel * travel * (3 - 2 * travel);
+			const x = motion.home.x + (motion.x - motion.home.x) * eased;
+			const y = motion.home.y + (motion.y - motion.home.y) * eased;
+			motion.flying.setAttribute('transform', `translate(${x} ${y})`);
+		}
 	}
 	clear(instrument) {
+		for (const [key, motion] of this.motions)
+			if (motion.instrument === instrument) {
+				this.finish(motion);
+				this.motions.delete(key);
+			}
 		this.root
 			.querySelectorAll(
 				`#${instrument}-foot .toe, #${instrument}-flying-toes .flying-toe, ${
@@ -188,6 +242,7 @@ export default class Scene {
 			});
 	}
 	strike(instrument, note, x, surfaceY) {
+		if (!this.motionEnabled) return;
 		const index = wrap(note, 5);
 		const toe = this.root.querySelector(
 			`#${instrument}-foot [data-toe="${index}"]`
@@ -197,11 +252,18 @@ export default class Scene {
 		);
 		const scale = Math.abs(feet[instrument].sx);
 		toe.classList.add('struck');
-		flying.style.setProperty('--hit-x', `${x}px`);
-		flying.style.setProperty(
-			'--hit-y',
-			`${surfaceY - toes[index].ry * scale + 7}px`
-		);
+		const home = toeHome(instrument, index);
+		const y = surfaceY - toes[index].ry * scale + 7;
+		flying.setAttribute('transform', `translate(${home.x} ${home.y})`);
+		this.motions.set(flying, {
+			instrument,
+			source: toe,
+			flying,
+			home,
+			x,
+			y,
+			started: null
+		});
 		flying.classList.add('flying');
 	}
 
@@ -240,8 +302,10 @@ export default class Scene {
 		drumPlaying,
 		synthPlaying,
 		drumPattern,
-		synthPattern
+		synthPattern,
+		stepDuration = 0.12
 	}) {
+		this.stepDuration = stepDuration;
 		const svg = this.root.querySelector('svg');
 		svg.classList.toggle('playing', playing);
 		this.root.querySelector('#status').textContent = playing

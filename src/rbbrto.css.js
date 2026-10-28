@@ -21,11 +21,9 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
 .sole-inset,.toe-inset { stroke:var(--blue); stroke-width:5; fill:none; }
 .toe.struck { opacity:0; }
 .flying-toe { opacity:0; pointer-events:none; }
-.flying-toe.flying { opacity:1; filter:url(#glow); animation:toe-flight var(--beat-s) ease-in-out infinite; }
-@keyframes toe-flight {
-    0%,100% { transform:translate(var(--home-x),var(--home-y)); }
-    42%,55% { transform:translate(var(--hit-x),var(--hit-y)); }
-}
+.flying-toe.flying { opacity:1; filter:url(#glow); }
+#motion-toggle { min-height:44px; border:1px solid #343946; border-radius:10px; padding:0 12px; background:transparent; color:#b1b5c4; font:10px monospace; cursor:pointer; }
+.motion-disabled #hula-dancer,.motion-disabled .skirt { animation:none!important; }
 .drum-piece,.synth-key { transition:stroke .08s; }
 .drum-piece.struck { stroke:#f1fff7; filter:url(#glow); }
 .synth-key.struck { stroke:var(--green); stroke-width:13; filter:url(#glow); }
@@ -114,5 +112,5 @@ rbbrto-settings { flex:1; max-width:560px; }
  .transport { grid-row:2; display:flex; align-items:center; gap:8px; } .transport input { font-size:20px; }
  .transport-note,.cockpit::after { display:none; } footer { min-height:44px; }
 }
-@media (prefers-reduced-motion:reduce) { .playing #hula-dancer,.playing .skirt,.flying-toe.flying { animation:none; } .toe.struck { opacity:1; } .flying-toe.flying { display:none; } }
+
 `;
