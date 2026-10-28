@@ -116,7 +116,8 @@ test('worker fetches once, caches a clone, and returns the network response', as
 	const response = new Response('fresh');
 	let cached;
 	const dispatch = worker(
-		async () => {
+		async (_, options) => {
+			assert.equal(options.cache, 'no-cache');
 			calls++;
 			return response;
 		},

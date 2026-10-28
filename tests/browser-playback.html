@@ -19,6 +19,8 @@ let passed=0;
 try {
  for(let drum=0;drum<7;drum++) for(let synth=7;synth<14;synth++) {
   const hits={drum:0,synth:0};
+  const positions=new Set();
+  app._scene.setMotionEnabled(true);
   app._Tone={start:async()=>{},context:{state:'running'},Frequency:note=>({toNote:()=>String(note)})};
   app._toneDrum={triggerAttackRelease(){hits.drum++;},triggerRelease(){}};
   app._toneSynth={triggerAttackRelease(){hits.synth++;},releaseAll(){}};
@@ -27,13 +29,15 @@ try {
    if(frame===720) hits.drum=hits.synth=0;
    if(frames.size!==1) throw new Error(`beat loop count ${frames.size}`);
    const [key,fn]=frames.entries().next().value;frames.delete(key);clock+=1000/60;fn(clock);
+   root.querySelectorAll('.flying-toe.flying').forEach(toe=>positions.add(toe.getAttribute('transform')));
   }
+  if(positions.size<12)throw new Error('toe positions did not animate');
   if(!app.playback||!hits.drum||!hits.synth)throw new Error(`duet stopped: ${drum}/${synth}`);
   fire(left,'pointerup',1,drum);fire(right,'pointerup',2,synth);
   if(app.playback||frames.size)throw new Error('release left a running beat');
   passed++;
  }
- document.querySelector('#result').textContent=`PASS — all ${passed} drum/synth pairs continued beyond multiple loops using the real scene`;
+ document.querySelector('#result').textContent=`PASS — all ${passed} drum/synth pairs continued through multiple loops with moving SVG toes`;
 } catch(error) {document.querySelector('#result').textContent=`FAIL after ${passed} pairs — ${error.message}`;}
 finally {window.requestAnimationFrame=nativeRAF;window.cancelAnimationFrame=nativeCancel;}
 </script></body></html>

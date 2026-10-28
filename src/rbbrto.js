@@ -92,6 +92,11 @@ class Rbbrto extends HTMLElement {
 
 		this.shadow.innerHTML = `<style>${css}</style>${sceneMarkup}`;
 		this._scene = new Scene(this.shadow);
+		this.shadow
+			.querySelector('#motion-toggle')
+			.addEventListener('click', () =>
+				this._scene.setMotionEnabled(!this._scene.motionEnabled)
+			);
 		this._audio = new AudioUnlock(
 			async () => {
 				const Tone = await import('https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm');
@@ -372,6 +377,7 @@ class Rbbrto extends HTMLElement {
 			this[$synthPlayhead] = ++this[$synthPlayhead] % synthPattern.length;
 		}
 
+		this._scene.tick(timestamp);
 		if (this[$playback]) {
 			// Continue playback
 			this._beatFrame = requestAnimationFrame(this._playBeat.bind(this));
@@ -522,7 +528,8 @@ class Rbbrto extends HTMLElement {
 			drumPlaying: this[$drumPlayback],
 			synthPlaying: this[$synthPlayback],
 			drumPattern: this[$drumPattern],
-			synthPattern: this[$synthPattern]
+			synthPattern: this[$synthPattern],
+			stepDuration: this[$stepDuration]
 		});
 	}
 
