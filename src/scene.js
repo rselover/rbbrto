@@ -169,7 +169,7 @@ ${foot('hula-foot', 'translate(0 24) rotate(174) scale(.62)')}
 ${bank('synth', 'QWERTYU', 7)}
 <div class="transport"><span class="tempo-label">TEMPO</span><label><input id="tempo" type="number" min="30" max="240" value="125" aria-label="Tempo in beats per minute"/><span>BPM</span></label><span class="transport-note" id="play-hint">HOLD BOTH GRIPS TO DUET</span><button id="stop-all" type="button">Stop</button></div>
 </section>
-<section class="expression-controls" aria-label="Live rhythm and expression">
+<section class="performance-drawer" aria-label="Performance panel"><button id="drawer-toggle" type="button" aria-controls="drawer-content" aria-expanded="false">Rhythm + expression ↑</button><div id="drawer-content" class="drawer-content"><section class="expression-controls" aria-label="Live rhythm and expression">
 ${['drum', 'synth']
 	.map(
 		instrument =>
@@ -179,7 +179,7 @@ ${['drum', 'synth']
 	)
 	.join('')}
 </section>
-<footer><button id="motion-toggle" type="button" aria-pressed="true">Motion on</button><rbbrto-settings></rbbrto-settings><span class="footer-hint">TOUCH · KEYS · MIDI</span></footer>`;
+<footer><button id="motion-toggle" type="button" aria-pressed="true">Motion on</button><rbbrto-settings></rbbrto-settings><span class="footer-hint">TOUCH · KEYS · MIDI</span></footer></div></section>`;
 
 export default class Scene {
 	constructor(root) {

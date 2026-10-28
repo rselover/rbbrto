@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Landscape fit regression</title>
+	</head>
+	<body style="margin:0;background:#222;color:white;font:13px monospace">
+		<iframe
+			id="app"
+			src="landscape-app.html"
+			title="Landscape fit preview"
+			style="display:block;border:0;margin:auto"
+		></iframe
+		><output id="result" style="display:block;text-align:center;padding:14px"
+			>Checking landscape layout…</output
+		><script>
+			const params = new URLSearchParams(location.search),
+				width = Number(params.get('width')) || 844,
+				height = Number(params.get('height')) || 390,
+				frame = document.querySelector('#app');
+			frame.style.width = width + 'px';
+			frame.style.height = height + 'px';
+			frame.addEventListener('load', async () => {
+				const win = frame.contentWindow,
+					doc = win.document;
+				await win.customElements.whenDefined('rbbrto-sequencer');
+				await new Promise(resolve =>
+					win.requestAnimationFrame(() => win.requestAnimationFrame(resolve))
+				);
+				const app = doc.querySelector('rbbrto-sequencer'),
+					root = app.shadowRoot,
+					result = document.querySelector('#result');
+				const check = (condition, label) => {
+					if (!condition) throw new Error(label);
+				};
+				const fits = element => {
+					const r = element.getBoundingClientRect();
+					return (
+						r.left >= -1 &&
+						r.top >= -1 &&
+						r.right <= width + 1 &&
+						r.bottom <= height + 1
+					);
+				};
+				const touch = (element, type, x, y, id = 1) => {
+					const event = new win.Event(type, {
+						bubbles: true,
+						cancelable: true
+					});
+					Object.defineProperty(event, 'changedTouches', {
+						value: [{ identifier: id, clientX: x, clientY: y }]
+					});
+					element.dispatchEvent(event);
+				};
+				try {
+					for (const element of root.querySelectorAll(
+						'[data-pattern],#audio-start,#lock-toggle,#tempo,#stop-all,#drawer-toggle'
+					))
+						check(
+							fits(element),
+							'control outside viewport: ' +
+								(element.id || element.getAttribute('aria-label'))
+						);
+					for (const button of root.querySelectorAll('[data-pattern]')) {
+						const r = button.getBoundingClientRect();
+						check(r.width >= 44 && r.height >= 44, 'small pattern target');
+					}
+					check(
+						doc.documentElement.scrollHeight <= height + 1,
+						'page requires vertical scrolling'
+					);
+					check(
+						doc.documentElement.scrollWidth <= width + 1,
+						'page requires horizontal scrolling'
+					);
+					const svg = root.querySelector('.stage svg'),
+						before = svg.getBoundingClientRect(),
+						handle = root.querySelector('#drawer-toggle'),
+						content = root.querySelector('#drawer-content');
+					check(content.inert, 'closed controls should be inert');
+					const r = handle.getBoundingClientRect();
+					touch(handle, 'touchstart', r.left + 50, r.top + 22);
+					touch(handle, 'touchend', r.left + 50, r.top - 80);
+					await new Promise(resolve => win.setTimeout(resolve, 240));
+					check(
+						handle.getAttribute('aria-expanded') === 'true',
+						'swipe-up did not open'
+					);
+					const after = svg.getBoundingClientRect();
+					check(
+						Math.abs(before.width - after.width) < 0.1 &&
+							Math.abs(before.height - after.height) < 0.1,
+						'drawer resized orchestra'
+					);
+					for (const pad of root.querySelectorAll('[data-expression]'))
+						check(fits(pad), 'expression pad outside viewport');
+					const pad = root.querySelector('[data-expression="drum"]'),
+						p = pad.getBoundingClientRect();
+					touch(pad, 'touchstart', p.left + 5, p.top + 5, 9);
+					touch(pad, 'touchmove', p.right - 5, p.bottom - 5, 9);
+					touch(pad, 'touchend', p.right - 5, p.bottom - 5, 9);
+					check(
+						handle.getAttribute('aria-expanded') === 'true',
+						'XY gesture closed drawer'
+					);
+					check(app._expression.values.drum.x > 0.9, 'pad gesture not applied');
+					const h = handle.getBoundingClientRect();
+					touch(handle, 'touchstart', h.left + 50, h.top + 20);
+					touch(handle, 'touchend', h.left + 50, h.top + 120);
+					check(
+						handle.getAttribute('aria-expanded') === 'false',
+						'swipe-down did not close'
+					);
+					result.textContent = `PASS ${width}×${height} — all controls fit, 44px targets, swipes, XY touch, unchanged orchestra size`;
+				} catch (error) {
+					result.textContent = `FAIL ${width}×${height} — ${error.message}`;
+				}
+			});
+		</script>
+	</body>
+</html>

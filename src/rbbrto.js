@@ -3,6 +3,7 @@ import MIDI, { whiteKeys, idxToMidi } from './midi.js';
 import PatternInput from './input.js';
 import AudioUnlock from './audio-unlock.js';
 import Expression, { bindExpression } from './expression.js';
+import PerformanceDrawer from './drawer.js';
 import Scene, { sceneMarkup } from './scene.js';
 import css from './rbbrto.css.js';
 import { asArrayLike, stringBool } from './utils.js';
@@ -86,7 +87,8 @@ class Rbbrto extends HTMLElement {
 		this.shadow = this.attachShadow({ mode: 'open' });
 
 		this.shadow.innerHTML = `<style>${css}</style>${sceneMarkup}`;
-		this._scene = new Scene(this.shadow);
+        this._scene = new Scene(this.shadow);
+        this._drawer = new PerformanceDrawer(this.shadow);
 		this._expression = new Expression();
 		this._expressionBindings = ['drum', 'synth'].map(instrument => {
 			const binding = bindExpression(
@@ -168,7 +170,8 @@ class Rbbrto extends HTMLElement {
 
 	// We're in the DOM
 	connectedCallback() {
-		this._scene.connectLayout();
+        this._scene.connectLayout();
+        this._drawer.connect();
 		this._resetDrums();
 		this._idleDrums();
 
@@ -828,7 +831,8 @@ class Rbbrto extends HTMLElement {
 	}
 
 	disconnectedCallback() {
-		this._scene.disconnectLayout();
+        this._scene.disconnectLayout();
+        this._drawer.disconnect();
 		for (const binding of this._expressionBindings || []) binding.clear();
 		if (this._disconnectKeyboard) this._disconnectKeyboard();
 		this._disconnectKeyboard = null;
