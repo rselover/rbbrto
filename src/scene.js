@@ -66,24 +66,45 @@ function foot(id, transform) {
 }
 
 function bongo(x, y, radius, height, firstNote) {
+	const bottom = y + height;
 	return `<g class="bongo">
-        <path d="M${x - radius} ${y} L${x - radius * 0.72} ${y +
-		height} Q${x} ${y + height + 23} ${x + radius * 0.72} ${y + height} L${x +
-		radius} ${y}"/>
-        <path d="M${x - radius * 0.72} ${y + height} Q${x} ${y +
-		height +
-		23} ${x + radius * 0.72} ${y +
-		height}" fill="none" stroke="${BLUE}" stroke-width="4"/>
-        <path d="M${x - radius + 16} ${y + 15} l12 40 M${x + radius - 16} ${y +
-		15} l-12 40" fill="none" stroke-width="5"/>
-        <ellipse cx="${x}" cy="${y}" rx="${radius}" ry="30"/>
+        <path d="M${x - radius} ${y + 9} C${x - radius - 3} ${y +
+		height * 0.48} ${x - radius * 0.68} ${bottom - 12} ${x -
+		radius * 0.62} ${bottom} Q${x} ${bottom + 19} ${x +
+		radius * 0.62} ${bottom} C${x + radius * 0.68} ${bottom - 12} ${x +
+		radius +
+		3} ${y + height * 0.48} ${x + radius} ${y + 9}"/>
+        <path d="M${x - radius * 0.62} ${bottom - 10} Q${x} ${bottom + 9} ${x +
+		radius * 0.62} ${bottom - 10} M${x -
+		radius * 0.62} ${bottom} Q${x} ${bottom + 19} ${x +
+		radius * 0.62} ${bottom}" fill="none" stroke-width="4"/>
+        ${[-0.48, 0, 0.48]
+					.map(
+						t =>
+							`<path d="M${x + radius * t} ${y + 34} Q${x +
+								radius * t * 0.92} ${y + height * 0.58} ${x +
+								radius * t * 0.65} ${bottom -
+								7}" fill="none" stroke-width="2.5" opacity=".55"/>`
+					)
+					.join('')}
+        <ellipse cx="${x}" cy="${y + 12}" rx="${radius + 3}" ry="29"/>
+        <ellipse cx="${x}" cy="${y}" rx="${radius + 3}" ry="29"/>
+        <ellipse cx="${x}" cy="${y - 2}" rx="${radius -
+		10}" ry="21" fill="none" stroke-width="3"/>
+        ${[-0.8, 0.8]
+					.map(
+						t =>
+							`<g stroke-width="4"><path d="M${x + radius * t - 5} ${y +
+								25} v35 q5 10 10 0 v-35"/><path d="M${x + radius * t - 8} ${y +
+								43} h16"/></g>`
+					)
+					.join('')}
         ${[0, 1, 2]
 					.map(
 						i =>
-							`<path class="drum-piece" data-drum="${firstNote + i}" d="M${x -
-								radius * 0.6 +
-								i * radius * 0.6 -
-								12} ${y} h24" stroke="${GREEN}" stroke-width="9" stroke-linecap="round"/>`
+							`<ellipse class="drum-piece" data-drum="${firstNote +
+								i}" cx="${x}" cy="${y}" rx="${radius -
+								5}" ry="25" fill="none" stroke="none"/>`
 					)
 					.join('')}
     </g>`;
@@ -114,7 +135,7 @@ export const sceneMarkup = `
 ${bank('drum', 'ASDFGHJ', 0)}
 <main class="stage">
 <svg viewBox="0 0 1600 850" role="img" aria-labelledby="scene-title scene-desc">
-<title id="scene-title">The Rbbrto foot orchestra</title><desc id="scene-desc">Upright neon feet send their toes down to strike bongo drums and a baby grand piano. A flower-crowned hula foot dances between them while patterns play.</desc>
+<title id="scene-title">The Rbbrto foot orchestra</title><desc id="scene-desc">Upright neon feet send their toes down to strike bongo drums and a green outline keyboard. A flower-crowned hula foot dances between them while patterns play.</desc>
 <defs><filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
 <g id="sequence" transform="translate(584 44)">${Array.from(
 	{ length: 32 },
@@ -131,23 +152,17 @@ ${bank('drum', 'ASDFGHJ', 0)}
 <path d="M270 662 h52 v27 h-52Z" stroke="${BLUE}" stroke-width="5"/>
 ${bongo(183, 640, 89, 145, 0)}${bongo(410, 665, 108, 150, 3)}
 </g>
-<g class="keyboard" stroke="${GREEN}" stroke-width="7" fill="#060a08" stroke-linejoin="round">
-<!-- Curved grand case, raised lid, prop and three legs. -->
-<path d="M1100 644 V570 C1100 535 1148 526 1197 540 C1245 555 1242 480 1300 477 C1400 471 1484 525 1510 603 L1520 644Z"/>
-<path d="M1110 562 L1208 459 C1304 429 1448 467 1506 563 L1510 603 C1428 527 1320 505 1210 545Z" fill="#0a1210"/>
-<path d="M1210 545 L1208 459 M1470 550 L1470 604" fill="none" stroke="${BLUE}" stroke-width="5"/>
-<path d="M1100 644 H1520 V704 H1100Z"/>
-<path d="M1120 704 l-8 106 h18 l12-106 M1473 704 l12 106 h18 l-8-106 M1320 566 v48"/>
-<path d="M1270 730 h70 l12 23 h-94Z" stroke="${BLUE}" stroke-width="4"/>
-<g stroke="#eae1ff" stroke-width="2">${Array.from(
+<g class="keyboard" stroke="${GREEN}" stroke-width="6" fill="#060a08" stroke-linejoin="round">
+<rect x="1088" y="599" width="444" height="103" rx="15"/>
+<g stroke-width="3">${Array.from(
 	{ length: 12 },
 	(_, i) =>
 		`<rect class="synth-key" data-key="${i}" x="${1106 +
-			i * 34}" y="614" width="34" height="49" fill="#eae1ff" stroke="#17291f"/>`
+			i * 34}" y="614" width="34" height="70" rx="2"/>`
 ).join('')}</g>
-<g fill="#060a08" stroke="${BLUE}" stroke-width="2">${[0, 1, 3, 4, 5, 7, 8, 10]
+<g stroke-width="4">${[0, 1, 3, 4, 5, 7, 8, 10]
 	.map(
-		i => `<rect x="${1131 + i * 34}" y="613" width="17" height="28" rx="2"/>`
+		i => `<rect x="${1131 + i * 34}" y="613" width="17" height="39" rx="2"/>`
 	)
 	.join('')}</g>
 </g>
