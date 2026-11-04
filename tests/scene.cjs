@@ -134,7 +134,7 @@ test('upright toes start above the heel and travel to the played instrument', ()
 	assert(flying.classes.has('flying'));
 	scene.tick(0);
 	scene.tick(120);
-	assert.equal(flying.attributes.transform, 'translate(1285 593.75)');
+	assert.equal(flying.attributes.transform, 'translate(1293 619.75)');
 	groups.set('#synth-foot .toe, #synth-flying-toes .flying-toe, [data-key]', [
 		source,
 		flying
