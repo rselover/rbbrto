@@ -72,7 +72,7 @@ class Rbbrto extends HTMLElement {
 		this[$synthPlayback] = false;
 		this[$bpm] = parseFloat(40);
 		this[$drumPattern] = 0;
-		this[$synthPattern] = 0;
+		this[$synthPattern] = 7;
 		this[$activeDrumNotes] = null;
 		this[$activeSynthNotes] = null;
 		this[$controlChannel] = 16;
@@ -362,7 +362,7 @@ class Rbbrto extends HTMLElement {
 	 */
 	_playBeat(timestamp) {
 		let drumPattern = drumPatterns[this[$drumPattern]];
-		let synthPattern = synthPatterns[this[$synthPattern]];
+		let synthPattern = synthPatterns[this[$synthPattern] - 7];
 
 		// If there's a note scheduled to play, we'll play it
 		if (this[$noteScheduled]) {
@@ -601,7 +601,7 @@ class Rbbrto extends HTMLElement {
 		this._scene.update({
 			pattern: isDrum
 				? drumPatterns[patternIndex]
-				: synthPatterns[patternIndex],
+				: synthPatterns[patternIndex - 7],
 			step: (isDrum ? this[$drumPlayhead] : this[$synthPlayhead]) || 0,
 			patternIndex,
 			playing: this.playback,

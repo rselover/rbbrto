@@ -110,6 +110,27 @@ function bongo(x, y, radius, height, firstNote) {
     </g>`;
 }
 
+const patternNames = {
+	drum: [
+		'Palm conversation',
+		'Offbeat stroll',
+		'Three against four',
+		'Call and answer',
+		'Sparse moonwalk',
+		'Rolling fingertips',
+		'Carnival turn'
+	],
+	synth: [
+		'Lanterns',
+		'Tidepool',
+		'Paper kites',
+		'Night windows',
+		'Chopsticks',
+		'Treasure hop',
+		'Midnight mischief'
+	]
+};
+
 function bank(instrument, keys, offset) {
 	return `<div class="bank-wrap ${instrument}-grip"><div class="bank-heading"><span><i></i>${
 		instrument === 'drum' ? 'DRUMS' : 'SYNTH'
@@ -119,9 +140,13 @@ function bank(instrument, keys, offset) {
 		.split('')
 		.map(
 			(key, index) =>
-				`<button type="button" data-pattern="${index +
+				`<button type="button" title="${
+					patternNames[instrument][index]
+				}" data-pattern="${index +
 					offset}" aria-label="${instrument} pattern ${index +
-					1}, key ${key}" aria-pressed="false"><span>${key}</span><small>0${index +
+					1}, key ${key}, ${
+					patternNames[instrument][index]
+				}" aria-pressed="false"><span>${key}</span><small>0${index +
 					1}</small></button>`
 		)
 		.join('')}</div><span class="grip-caption">${
