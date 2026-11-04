@@ -24,35 +24,77 @@ export default class PatternInput {
 		this.unlock = unlock;
 		this.held = new Map();
 		this.clearPointers = new Set();
+		this.locked = false;
+		this.latched = new Map();
+		this.selected = new Map();
 	}
 
+	group(note) {
+		return this.notes.indexOf(note) < 7 ? 'drum' : 'synth';
+	}
+	active(note) {
+		return [...this.held.values(), ...this.latched.values()].includes(note);
+	}
+	setLocked(locked) {
+		const next = Boolean(locked);
+		if (next === this.locked) return;
+		this.locked = next;
+		if (this.locked) {
+			this.selected.clear();
+			for (const note of this.held.values())
+				this.selected.set(this.group(note), note);
+			return;
+		}
+		const notes = new Set(this.latched.values());
+		this.latched.clear();
+		for (const note of notes) if (!this.active(note)) this.release(note);
+		this.selected.clear();
+		for (const note of this.held.values())
+			this.selected.set(this.group(note), note);
+	}
 	start(source, note) {
+		if (!this.notes.includes(note)) return;
 		const previous = this.held.get(source);
 		if (previous === note) return;
-		const alreadyHeld = [...this.held.values()].includes(note);
+		const group = this.group(note);
+		const wasActive = this.active(note);
+		const selected = this.selected.get(group);
+		const latched = this.latched.get(group);
+		this.held.delete(source);
 		this.held.set(source, note);
-		// Press first so sliding preserves playback and the other playhead.
-		if (!alreadyHeld) this.press(note);
-		if (previous !== undefined && ![...this.held.values()].includes(previous)) {
-			this.release(previous);
+		this.selected.set(group, note);
+		if (latched !== note) this.latched.delete(group);
+		if (!wasActive || selected !== note) this.press(note);
+		for (const old of new Set([previous, latched])) {
+			if (old !== undefined && old !== note && !this.active(old))
+				this.release(old);
 		}
 	}
-
 	stop(source) {
 		const note = this.held.get(source);
+		if (note === undefined) return;
 		this.held.delete(source);
-		if (note !== undefined && ![...this.held.values()].includes(note)) {
-			this.release(note);
-		}
+		const group = this.group(note);
+		if (this.locked && this.selected.get(group) === note)
+			this.latched.set(group, note);
+		if (!this.active(note)) this.release(note);
 	}
-
 	stopAll() {
-		for (const source of this.held.keys()) this.stop(source);
+		const notes = new Set([...this.held.values(), ...this.latched.values()]);
+		this.held.clear();
+		this.latched.clear();
+		this.selected.clear();
+		for (const note of notes) this.release(note);
 		for (const clear of this.clearPointers) clear();
 	}
 
 	keyboard(target, page) {
 		const down = event => {
+			if (event.code === 'Escape') {
+				event.preventDefault();
+				this.stopAll();
+				return;
+			}
 			if (event.ctrlKey || event.metaKey || event.altKey || event.repeat)
 				return;
 			if (

@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lock and expression regression</title><link rel="stylesheet" href="../src/style.css"><script>Object.defineProperty(navigator,'requestMIDIAccess',{value:async()=>({inputs:new Map(),outputs:new Map()})});</script><script type="module" src="../src/settings.js"></script><script type="module" src="../src/rbbrto.js"></script></head><body><output id="result" style="position:fixed;top:0;left:0;z-index:99;background:#111;color:white;padding:12px">Checking performance controls…</output><rbbrto-sequencer control-channel="14" drum-channel="1" synth-channel="8" bpm="125"></rbbrto-sequencer><script type="module">
+await customElements.whenDefined('rbbrto-sequencer');const app=document.querySelector('rbbrto-sequencer'),root=app.shadowRoot;
+const check=(value,label)=>{if(!value)throw new Error(label);};
+const touch=(element,type,id,x=.5,y=.5)=>{const r=element.getBoundingClientRect(),event=new Event(type,{bubbles:true,cancelable:true});Object.defineProperty(event,'changedTouches',{value:[{identifier:id,clientX:r.left+r.width*x,clientY:r.top+r.height*y}]});element.dispatchEvent(event);};
+const key=i=>root.querySelector(`[data-pattern="${i}"]`),active=i=>key(i).getAttribute('aria-pressed')==='true';
+try {
+ check(!root.querySelector('.wordmark').textContent.includes('&'),'ampersand removed');
+ root.querySelector('#lock-toggle').click();
+ const left=key(0),right=key(7);
+ touch(left,'touchstart',1);touch(left,'touchend',1);touch(right,'touchstart',2);touch(right,'touchend',2);
+ check(active(0)&&active(7)&&app.playback,'released touch duet latches');
+ const next=key(1);touch(next,'touchstart',3);touch(next,'touchend',3);
+ check(active(1)&&!active(0)&&active(7),'replacement changes only one instrument');
+ const drum=root.querySelector('[data-expression="drum"]'),synth=root.querySelector('[data-expression="synth"]');
+ touch(drum,'touchstart',4,.05,.9);touch(synth,'touchstart',5,.95,.1);
+ check(app._expression.values.drum.x<.1&&app._expression.values.drum.y<.2,'drum sparse/soft');
+ check(app._expression.values.synth.x>.9&&app._expression.values.synth.y>.8,'synth fill/strong');
+ touch(drum,'touchend',4);touch(synth,'touchend',5);
+ check(active(1)&&active(7),'expression gesture does not release latched notes');
+ root.querySelector('[data-reset="drum"]').click();check(app._expression.values.drum.x===.5,'reset original rhythm');
+ root.querySelector('#stop-all').click();check(!app.playback&&!root.querySelector('[data-pattern][aria-pressed="true"]'),'Stop silences lock');
+ root.querySelector('#lock-toggle').click();
+ touch(left,'touchstart',6);touch(left,'touchend',6);check(!app.playback,'unlocked release stops');
+ document.querySelector('#result').textContent='PASS — latch, duet, replacement, native XY touch, reset, Stop, unlocked release';
+}catch(error){document.querySelector('#result').textContent='FAIL — '+error.message;}
+</script></body></html>

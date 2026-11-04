@@ -31,7 +31,12 @@ function sequencer() {
 		}
 	});
 	vm.runInContext(
-		`const n = note => note - 53;\n${read('patterns.js')
+		`${read('input.js')
+			.replace('export const KEY_CODES', 'const KEY_CODES')
+			.replace(
+				'export default class PatternInput',
+				'class PatternInput'
+			)}\nconst n = note => note - 53;\n${read('patterns.js')
 			.replace(/^import.*\n/m, '')
 			.replace(/export const/g, 'const')}\n${read('utils.js').replace(
 			/export function/g,
@@ -191,5 +196,29 @@ test('suspended Safari audio cannot freeze the beat loop and sound joins after u
 	assert(synth > 0 && drum > 0);
 	midi.noteoff(14, 53);
 	midi.noteoff(14, 67);
+	assert.equal(seq.playback, false);
+});
+
+test('MIDI-controlled locked duet keeps looping after both note-offs and unlock stops it', () => {
+	const { seq, midi, run, messages } = sequencer();
+	seq._input.setLocked(true);
+	midi.noteon(14, 53, 'keyboard');
+	midi.noteoff(14, 53, 'keyboard');
+	midi.noteon(14, 67, 'keyboard');
+	midi.noteoff(14, 67, 'keyboard');
+	assert.equal(seq._input.latched.size, 2);
+	assert.equal(seq.playback, true);
+	run(900);
+	assert(
+		messages.some(
+			m => m.channel === 1 && m.time > 12000 && m.command === 'noteon'
+		)
+	);
+	assert(
+		messages.some(
+			m => m.channel === 8 && m.time > 12000 && m.command === 'noteon'
+		)
+	);
+	seq._input.setLocked(false);
 	assert.equal(seq.playback, false);
 });

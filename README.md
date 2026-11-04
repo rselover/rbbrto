@@ -1,4 +1,4 @@
-# rbbrto &
+# rbbrto
 
 A little sole. A lot of rhythm. A neon foot orchestra inspired by the supplied Rbbrto reference: red feet, blue inner contours, green instruments and a flower-crowned hula dancer.
 
@@ -35,7 +35,7 @@ The artwork replaces the original gorilla/professor template and its hand-based 
 
 The sequencer pattern data matches `sampi/finger` (only naming comments differ). While an instrument is active, pattern changes preserve its playhead, and releasing the newest held pattern falls back to the previous one. Each instrument now sends immediate MIDI note-offs and stops its local audio voice when its last control is released, even while the other instrument continues. Repeated hardware note-ons are de-duplicated and unmatched note-offs are ignored. Two-note steps correctly retain a second note with index zero.
 
-Portrait and landscape phones keep the app between the two curved thumb banks. Buttons grow with available screen height, with a 44px minimum in short landscape screens. Buttons remain at least 44px in the supported 320px-and-up layouts. Scrolling remains available outside the grips. Physical multitouch devices and MIDI hardware still require device testing.
+Portrait and landscape phones keep the app between the two curved thumb banks. Buttons grow with available screen height, with a 44px minimum in short landscape screens. Buttons remain at least 44px in the supported 320px-and-up layouts. In short landscape viewports, two-column thumb banks keep every pattern visible and the page stays within the screen. Physical multitouch devices and MIDI hardware still require device testing.
 
 Bass-note playback regression: some Finger synth patterns have negative internal indexes because their MIDI pitches are below 53. Visual indexes now wrap into the valid toe/key range without changing the musical pitches. Previously a missing toe element threw inside the shared beat loop and stopped playback. Tests exercise all 49 drum/synth pairs through several loops and each synth alone with drums added/removed. `/tests/browser-playback.html` repeats the duet check against real SVG elements using a simulated clock, touch pointers and audio/MIDI doubles. Both browser fixtures disable hardware MIDI output.
 
@@ -46,3 +46,19 @@ Native mobile input: pattern banks handle touchstart/touchmove/touchend/touchcan
 Toe motion now uses SVG transform attributes updated by the existing beat animation loop, rather than CSS-variable SVG keyframes. The flight is timed to the current step duration and restores the original toe after contact or release. Motion on/off in the footer defaults to the system reduced-motion preference and allows an explicit override. Browser playback tests assert changing transform values through all 49 duets.
 
 Updates: the service worker revalidates network assets instead of trusting a still-fresh HTTP cache entry, activates the new worker, and claims clients. Registration checks for an update without the worker-script cache. After deploying an update, refresh Safari; if necessary refresh once more after the worker activates. The Motion on/off control identifies this version. Previously cached offline responses remain available when the network is unavailable.
+
+Mobile toe visibility: portrait screens now use a tall scene composition between the side banks instead of shrinking the entire wide orchestra into the center column. Moving toes are unfiltered SVG vectors. Flights last at least 240ms, can continue across short rests, and restart from their current position for rapid repeated notes; release still restores the foot immediately. `tests/browser-toe-paint.html` freezes a toe at instrument contact for visual inspection of actual pixels, supplementing coordinate tests.
+
+## Lock and play the feel
+
+The top-right lock latches the current drum and synth patterns when you release their controls. Selecting another pattern replaces that instrument's latch. Unlock releases latched notes but preserves keys/fingers that are still physically held. **Stop** or **Escape** silences both instruments regardless of lock; leaving the window also clears held/latched inputs. The same ownership/latch logic handles touch, computer keys and incoming MIDI (separate device identities are retained).
+
+The two live pads below the stage control each instrument independently. Drag **left/right** for sparse/original/filled rhythm density and **up/down** for soft/strong expression. Expression changes MIDI note velocity and local audio velocity/note duration. Rhythm changes are deterministic, preserve original data, and leave the center region unchanged; fills reuse notes from the current pattern. Reset returns that pad to the original rhythm and default expression. Arrow keys adjust a focused pad.
+
+`tests/browser-performance.html` checks native-touch latch/release, duet, replacement, XY gestures, reset, Stop and unlocked behavior against the rendered app.
+
+## Landscape phone drawer
+
+On landscape screens up to 550px tall, rhythm/expression pads and MIDI settings live in a bottom drawer. Tap the handle or swipe it up to open; tap or swipe down to close. Tempo and Stop remain in the header, with both pattern banks visible and targets at least 44px. The drawer overlays the orchestra without resizing its artwork. Safe-area insets leave space for the iPhone notch and home indicator. Desktop and portrait retain the inline pads.
+
+`tests/browser-landscape.html?width=844&height=390` checks rendered control bounds, target sizes, no page scrolling, native-touch drawer gestures, XY dragging, and unchanged orchestra dimensions. Change width/height to check smaller viewports. Physical iPhone Safari testing remains necessary.

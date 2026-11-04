@@ -65,13 +65,49 @@ function foot(id, transform) {
     </g>`;
 }
 
-function drum(x, y, w, h, id) {
-	return `<g class="drum-piece" data-drum="${id}"><path d="M${x -
-		w} ${y} v${h} a${w} 19 0 0 0 ${w *
-		2} 0 v-${h}"/><ellipse cx="${x}" cy="${y +
-		h}" rx="${w}" ry="19"/><ellipse cx="${x}" cy="${y}" rx="${w}" ry="19"/><path d="M${x -
-		w +
-		8} ${y + 7} v24 M${x + w - 8} ${y + 7} v24"/></g>`;
+function bongo(x, y, radius, height, firstNote) {
+	const bottom = y + height;
+	return `<g class="bongo">
+        <path d="M${x - radius} ${y + 9} C${x - radius - 3} ${y +
+		height * 0.48} ${x - radius * 0.68} ${bottom - 12} ${x -
+		radius * 0.62} ${bottom} Q${x} ${bottom + 19} ${x +
+		radius * 0.62} ${bottom} C${x + radius * 0.68} ${bottom - 12} ${x +
+		radius +
+		3} ${y + height * 0.48} ${x + radius} ${y + 9}"/>
+        <path d="M${x - radius * 0.62} ${bottom - 10} Q${x} ${bottom + 9} ${x +
+		radius * 0.62} ${bottom - 10} M${x -
+		radius * 0.62} ${bottom} Q${x} ${bottom + 19} ${x +
+		radius * 0.62} ${bottom}" fill="none" stroke-width="4"/>
+        ${[-0.48, 0, 0.48]
+					.map(
+						t =>
+							`<path d="M${x + radius * t} ${y + 34} Q${x +
+								radius * t * 0.92} ${y + height * 0.58} ${x +
+								radius * t * 0.65} ${bottom -
+								7}" fill="none" stroke-width="2.5" opacity=".55"/>`
+					)
+					.join('')}
+        <ellipse cx="${x}" cy="${y + 12}" rx="${radius + 3}" ry="29"/>
+        <ellipse cx="${x}" cy="${y}" rx="${radius + 3}" ry="29"/>
+        <ellipse cx="${x}" cy="${y - 2}" rx="${radius -
+		10}" ry="21" fill="none" stroke-width="3"/>
+        ${[-0.8, 0.8]
+					.map(
+						t =>
+							`<g stroke-width="4"><path d="M${x + radius * t - 5} ${y +
+								25} v35 q5 10 10 0 v-35"/><path d="M${x + radius * t - 8} ${y +
+								43} h16"/></g>`
+					)
+					.join('')}
+        ${[0, 1, 2]
+					.map(
+						i =>
+							`<ellipse class="drum-piece" data-drum="${firstNote +
+								i}" cx="${x}" cy="${y}" rx="${radius -
+								5}" ry="25" fill="none" stroke="none"/>`
+					)
+					.join('')}
+    </g>`;
 }
 
 function bank(instrument, keys, offset) {
@@ -94,12 +130,12 @@ function bank(instrument, keys, offset) {
 }
 
 export const sceneMarkup = `
-<header class="masthead"><a class="wordmark" href="https://github.com/rselover/rbbrto" aria-label="Rbbrto source on GitHub">rbbrto<span> &</span></a><div class="audio-controls"><button id="audio-start" type="button" disabled>Loading sound…</button><span id="audio-message" role="status" aria-live="polite">Preparing instruments…</span></div><span class="live-status"><i></i> <span id="status">READY TO PLAY</span></span></header>
+<header class="masthead"><a class="wordmark" href="https://github.com/rselover/rbbrto" aria-label="Rbbrto source on GitHub">rbbrto</a><div class="audio-controls"><button id="audio-start" type="button" disabled>Loading sound…</button><span id="audio-message" role="status" aria-live="polite">Preparing instruments…</span></div><span class="live-status"><i></i> <span id="status">READY TO PLAY</span></span><button id="lock-toggle" type="button" aria-pressed="false" aria-label="Lock playback off"><span class="lock-icon" aria-hidden="true"></span><span id="lock-label">Unlocked</span></button></header>
 <section class="cockpit" aria-label="Yoke pattern controls">
 ${bank('drum', 'ASDFGHJ', 0)}
 <main class="stage">
 <svg viewBox="0 0 1600 850" role="img" aria-labelledby="scene-title scene-desc">
-<title id="scene-title">The Rbbrto foot orchestra</title><desc id="scene-desc">Upright neon feet send their toes down to strike a drum kit and synthesizer. A flower-crowned hula foot dances between them while patterns play.</desc>
+<title id="scene-title">The Rbbrto foot orchestra</title><desc id="scene-desc">Upright neon feet send their toes down to strike bongo drums and a green outline keyboard. A flower-crowned hula foot dances between them while patterns play.</desc>
 <defs><filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
 <g id="sequence" transform="translate(584 44)">${Array.from(
 	{ length: 32 },
@@ -113,25 +149,23 @@ ${bank('drum', 'ASDFGHJ', 0)}
 <g id="drum-foot-position">${foot('drum-foot', footTransform('drum'))}</g>
 <g id="synth-foot-position">${foot('synth-foot', footTransform('synth'))}</g>
 <g class="kit" stroke="${GREEN}" fill="#070b09" stroke-width="7" stroke-linejoin="round">
-<g class="hardware" fill="none" stroke="#eee6ff" stroke-width="6"><path d="M115 589 v192 m0-32-50 42 m50-42 50 42 M468 584 v196 m0-31-50 42 m50-42 50 42 M300 660 v96"/></g>
-<g class="drum-piece" data-drum="0"><ellipse cx="127" cy="581" rx="82" ry="17"/><path d="M109 581 q18-10 36 0" fill="none"/></g>
-<g class="drum-piece" data-drum="4"><path d="M414 592 h116 l-58-17Z M414 603 h116 l-58 17Z"/></g>
-${drum(155, 682, 55, 80, 1)}${drum(255, 626, 50, 60, 2)}${drum(
-	383,
-	643,
-	57,
-	72,
-	3
-)}
-<g class="drum-piece" data-drum="5"><ellipse cx="300" cy="742" rx="103" ry="89"/><path d="M269 657 C139 654 158 823 269 829" fill="none"/><ellipse cx="348" cy="769" rx="20" ry="23"/></g>
+<path d="M270 662 h52 v27 h-52Z" stroke="${BLUE}" stroke-width="5"/>
+${bongo(183, 640, 89, 145, 0)}${bongo(410, 665, 108, 150, 3)}
 </g>
-<g class="keyboard" stroke="${GREEN}" stroke-width="7" fill="#060a08"><path d="M1095 645 H1520 L1502 730 H1113Z"/><g stroke="#eae1ff" stroke-width="6">${Array.from(
+<g class="keyboard" stroke="${GREEN}" stroke-width="6" fill="#060a08" stroke-linejoin="round">
+<rect x="1088" y="599" width="444" height="103" rx="15"/>
+<g stroke-width="3">${Array.from(
 	{ length: 12 },
 	(_, i) =>
-		`<path class="synth-key" data-key="${i}" d="M${1108 + i * 33} 618 h25"/>`
-).join(
-	''
-)}</g><text x="1305" y="706" text-anchor="middle" fill="${RED}" stroke="none" class="synth-letter">B</text><path d="M1144 748 h330" stroke="${BLUE}" stroke-width="2" opacity=".35"/></g>
+		`<rect class="synth-key" data-key="${i}" x="${1106 +
+			i * 34}" y="614" width="34" height="70" rx="2"/>`
+).join('')}</g>
+<g stroke-width="4">${[0, 1, 3, 4, 5, 7, 8, 10]
+	.map(
+		i => `<rect x="${1131 + i * 34}" y="613" width="17" height="39" rx="2"/>`
+	)
+	.join('')}</g>
+</g>
 ${flyingToes('drum')}${flyingToes('synth')}
 <g id="hula-position" transform="translate(800 438)"><g id="hula-dancer">
 ${foot('hula-foot', 'translate(0 24) rotate(174) scale(.62)')}
@@ -162,25 +196,63 @@ ${foot('hula-foot', 'translate(0 24) rotate(174) scale(.62)')}
 		`<ellipse data-lamp="${i}" cx="${40 +
 			i * 59}" cy="51" rx="23" ry="29" stroke="${GREEN}"/>`
 ).join('')}</g>
-<text x="290" y="235" text-anchor="middle" class="instrument-label">01 / PERCUSSION</text><text x="1305" y="235" text-anchor="middle" class="instrument-label">02 / SYNTHESIZER</text>
 <text x="800" y="597" text-anchor="middle" class="micro-label hula-caption">GOOD VIBRATIONS ONLY</text>
 </svg>
 </main>
 ${bank('synth', 'QWERTYU', 7)}
-<div class="transport"><span class="tempo-label">TEMPO</span><label><input id="tempo" type="number" min="30" max="240" value="125" aria-label="Tempo in beats per minute"/><span>BPM</span></label><span class="transport-note">HOLD BOTH GRIPS TO DUET</span></div>
+<div class="transport"><span class="tempo-label">TEMPO</span><label><input id="tempo" type="number" min="30" max="240" value="125" aria-label="Tempo in beats per minute"/><span>BPM</span></label><span class="transport-note" id="play-hint">HOLD BOTH GRIPS TO DUET</span><button id="stop-all" type="button">Stop</button></div>
 </section>
-<footer><button id="motion-toggle" type="button" aria-pressed="true">Motion on</button><rbbrto-settings></rbbrto-settings><span class="footer-hint">TOUCH · KEYS · MIDI</span></footer>`;
+<section class="performance-drawer" aria-label="Performance panel"><button id="drawer-toggle" type="button" aria-controls="drawer-content" aria-expanded="false">Rhythm + expression ↑</button><div id="drawer-content" class="drawer-content"><section class="expression-controls" aria-label="Live rhythm and expression">
+${['drum', 'synth']
+	.map(
+		instrument =>
+			`<div class="expression-panel ${instrument}-expression"><div class="expression-heading"><span>${
+				instrument === 'drum' ? 'DRUM' : 'SYNTH'
+			} / PLAY THE FEEL</span><button type="button" data-reset="${instrument}" aria-label="Reset ${instrument} rhythm and expression">Reset</button></div><div class="expression-pad" data-expression="${instrument}" role="group" tabindex="0"><span class="axis top">STRONG</span><span class="axis bottom">SOFT</span><span class="axis left">SPARSE</span><span class="axis right">FILL</span><i class="expression-cursor" aria-hidden="true"></i></div><output data-expression-output="${instrument}">Original rhythm · Expression 65%</output><p>Drag ↔ rhythm · ↕ expression. Lock a pattern to play hands-free.</p></div>`
+	)
+	.join('')}
+</section>
+<footer><button id="motion-toggle" type="button" aria-pressed="true">Motion on</button><rbbrto-settings></rbbrto-settings><span class="footer-hint">TOUCH · KEYS · MIDI</span></footer></div></section>`;
 
 export default class Scene {
 	constructor(root) {
 		this.root = root;
 		this.motions = new Map();
 		this.stepDuration = 0.12;
+		this.portrait =
+			typeof matchMedia === 'function'
+				? matchMedia('(max-width: 600px) and (orientation: portrait)')
+				: null;
+		this.layout = () =>
+			this.root
+				.querySelector('svg')
+				.setAttribute(
+					'viewBox',
+					this.portrait?.matches ? '520 0 560 1500' : '0 0 1600 850'
+				);
+		this.layout();
+		this.connectLayout();
 		this.setMotionEnabled(
 			typeof matchMedia !== 'function' ||
 				!matchMedia('(prefers-reduced-motion: reduce)').matches
 		);
 	}
+	connectLayout() {
+		if (this.layoutListening) return;
+		this.portrait?.addEventListener?.('change', this.layout);
+		this.layoutListening = true;
+		this.layout();
+	}
+	disconnectLayout() {
+		this.portrait?.removeEventListener?.('change', this.layout);
+		this.layoutListening = false;
+	}
+	clearHighlights(instrument) {
+		this.root
+			.querySelectorAll(instrument === 'drum' ? '[data-drum]' : '[data-key]')
+			.forEach(el => el.classList.remove('struck'));
+	}
+
 	setMotionEnabled(enabled) {
 		this.motionEnabled = enabled;
 		for (const motion of this.motions.values()) this.finish(motion);
@@ -205,7 +277,7 @@ export default class Scene {
 			if (motion.started === null) motion.started = timestamp;
 			const progress = Math.min(
 				1,
-				(timestamp - motion.started) / (this.stepDuration * 1000)
+				(timestamp - motion.started) / motion.duration
 			);
 			if (progress >= 1) {
 				this.finish(motion);
@@ -219,8 +291,13 @@ export default class Scene {
 					? 1
 					: (1 - progress) / 0.45;
 			const eased = travel * travel * (3 - 2 * travel);
-			const x = motion.home.x + (motion.x - motion.home.x) * eased;
-			const y = motion.home.y + (motion.y - motion.home.y) * eased;
+			const x =
+				(progress < 0.55 ? motion.from.x : motion.home.x) +
+				(motion.x - (progress < 0.55 ? motion.from.x : motion.home.x)) * eased;
+			const y =
+				(progress < 0.55 ? motion.from.y : motion.home.y) +
+				(motion.y - (progress < 0.55 ? motion.from.y : motion.home.y)) * eased;
+			motion.current = { x, y };
 			motion.flying.setAttribute('transform', `translate(${x} ${y})`);
 		}
 	}
@@ -254,7 +331,8 @@ export default class Scene {
 		toe.classList.add('struck');
 		const home = toeHome(instrument, index);
 		const y = surfaceY - toes[index].ry * scale + 7;
-		flying.setAttribute('transform', `translate(${home.x} ${home.y})`);
+		const from = this.motions.get(flying)?.current || home;
+		flying.setAttribute('transform', `translate(${from.x} ${from.y})`);
 		this.motions.set(flying, {
 			instrument,
 			source: toe,
@@ -262,21 +340,24 @@ export default class Scene {
 			home,
 			x,
 			y,
+			from,
+			current: from,
+			duration: Math.max(240, this.stepDuration * 1000),
 			started: null
 		});
 		flying.classList.add('flying');
 	}
 
 	drum(notes) {
-		this.clear('drum');
+		this.clearHighlights('drum');
 		notes.forEach(note => {
 			const targets = [
-				[127, 581],
-				[155, 682],
-				[255, 626],
-				[383, 643],
-				[472, 592],
-				[300, 742]
+				[130, 640],
+				[183, 640],
+				[236, 640],
+				[345, 665],
+				[410, 665],
+				[475, 665]
 			];
 			const [x, y] = targets[wrap(note, 6)];
 			this.strike('drum', note, x, y);
@@ -286,9 +367,9 @@ export default class Scene {
 		});
 	}
 	synth(notes) {
-		this.clear('synth');
+		this.clearHighlights('synth');
 		notes.forEach(note => {
-			this.strike('synth', note, 1120 + wrap(note + 53, 12) * 33, 618);
+			this.strike('synth', note, 1123 + wrap(note + 53, 12) * 34, 644);
 			this.root
 				.querySelector(`[data-key="${wrap(note + 53, 12)}"]`)
 				.classList.add('struck');
